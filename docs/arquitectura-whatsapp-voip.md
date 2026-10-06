@@ -7,7 +7,7 @@ Qué hay que construir y qué hay que dejar desplegado para acompañar al operad
 Un servicio propio (orquestador) con dos adaptadores:
 
 - WhatsApp Cloud API, directo o por un BSP.
-- Voz por SIP (llamada de WhatsApp o número de Colombia) hacia un agente en LiveKit que usa ese mismo orquestador.
+- Llamada de voz por WhatsApp (Meta entrega la llamada por SIP) hacia un agente en LiveKit que usa ese mismo orquestador.
 
 El procedimiento vive en archivos de flujo, no en el prompt. El modelo solo clasifica la intención, saca datos (cédula, puesto, serial) y traduce una frase libre a sí, no, no entendí o quiero un humano.
 
@@ -58,21 +58,15 @@ Un solo ambiente de piloto, con esto encendido:
 | TTS en español | Cartesia Sonic o ElevenLabs Flash, voz latina | Locución corta. Polly queda lento para conversación (800–1.500 ms al primer audio). |
 | Agente de voz | LiveKit Agents en LiveKit Cloud (el cliente acepta nube sin datos sensibles) | SIP, DTMF y cancelación de ruido. Detalle en [analisis-agente-voz.md](analisis-agente-voz.md). |
 | Número de WhatsApp | Meta Business, en verificación desde el día uno | La aprobación del nombre comercial tarda días. |
-| DID Colombia | Trunk SIP o CPaaS con número local | Que la llamada del puesto no sea internacional. |
 | Aviso de grabación | En el saludo de la llamada | Base para conservar el audio. |
 
 La guía offline de la tableta, el tablero completo y el modelo local de CSC no entran en este despliegue. El contenedor queda preparado para cambiar el clasificador a un modelo en la VPC si el cliente lo exige.
 
 ## Cómo entra la llamada
 
-El agente de voz corre en LiveKit Agents y recibe SIP por dos lados:
+El operador llama desde WhatsApp al mismo número de soporte del chat. Meta entrega la llamada por SIP a LiveKit Cloud; el agente de voz corre en LiveKit Agents. Audio de banda ancha, sin costo de minutos. Meta ve la llamada; el resto del procesamiento pasa por LiveKit y nuestros servicios en AWS.
 
-| Entrada | Cuándo conviene | Qué queda afuera de nuestra VPC |
-| --- | --- | --- |
-| Llamada de WhatsApp al número de soporte | El celular tiene datos. Meta entrega la llamada por SIP; mismo número que el chat, audio de banda ancha, sin minutos. | Meta ve la llamada. |
-| DID colombiano en un trunk SIP (Twilio, Telnyx, Plivo o un operador local) | Sin datos, solo señal de voz. | El operador del trunk ve el audio. |
-
-LiveKit Cloud es el arranque más rápido. Si el cliente pide que el audio no salga, el mismo agente se mueve a LiveKit en la VPC con STT y TTS locales, sin cambiar los flujos.
+Si el cliente pide que el audio no salga de su red, el mismo agente se mueve a LiveKit en la VPC con STT y TTS locales, sin cambiar los flujos.
 
 Retell, Vapi o un contact center completo (Amazon Connect, Twilio Flex) aceleran una demo y meten la conversación en un producto que no controla el árbol de pasos. Sirven para mostrar algo en días, no como base de este repo.
 
@@ -87,7 +81,7 @@ Fuera de ese corte: foto del cargador, nota de voz de WhatsApp, reenvío automá
 
 ## Orden de trabajo
 
-La verificación del número de WhatsApp y la compra del DID arrancan en paralelo al código: son el camino crítico, no un cierre.
+La verificación del número de WhatsApp y la habilitación de llamadas arrancan en paralelo al código: es el camino crítico, no un cierre.
 
 1. Dejar los tres flujos escritos y probados en el simulador.
 2. Publicar el webhook y cerrar el caso de conectividad por WhatsApp de punta a punta.

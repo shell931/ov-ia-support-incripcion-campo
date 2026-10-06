@@ -12,7 +12,7 @@ El operador está frente a una tableta que no conecta, no enciende o no lo deja 
 
 | Pregunta | Respuesta | Qué cambia |
 | --- | --- | --- |
-| ¿Con qué se comunica el operador? | Celular con minutos y datos. | Entran las dos vías: llamada de WhatsApp y número telefónico. |
+| ¿Con qué se comunica el operador? | Celular con minutos y datos. | Un solo canal: WhatsApp (chat y llamada de voz). |
 | ¿La mesa transfiere llamadas? | No. Atiende los casos directamente. | El agente no depende de una transferencia. Escala con un caso priorizado y la mesa devuelve la llamada. |
 | ¿El audio puede ir a la nube? | Sí, si no es información sensible. | LiveKit Cloud y proveedores en nube. La huella nunca entra; la cédula no pasa por el modelo. |
 
@@ -24,14 +24,7 @@ No es un IVR de menús ni un chat leído en voz alta. Hay tres cosas que lo hace
 
 ## Cómo llega la llamada
 
-Los operadores tienen minutos y datos, así que las dos entradas sirven y van al mismo agente.
-
-| Entrada | Rol | Qué implica |
-| --- | --- | --- |
-| Llamada de WhatsApp al número de soporte | **Principal.** Mismo contacto que el chat. | Meta habilita llamadas iniciadas por el usuario en Colombia y las entrega por SIP. Audio de banda ancha (Opus), sin costo de minutos. El teclado de WhatsApp manda tonos en la llamada, así que la cédula por teclado funciona. Requiere que el número tenga un límite diario de al menos 2.000 destinatarios. |
-| Llamada a un número de Colombia | **Respaldo.** Cuando los datos fallan en la zona o WhatsApp no conecta. | DID colombiano en un trunk SIP. Audio de 8 kHz, que reconoce peor. |
-
-Si el número de WhatsApp todavía no alcanza el límite de 2.000 cuando arranque la prueba, la prueba corre por el número de Colombia y WhatsApp entra en cuanto Meta lo habilite. El agente es el mismo.
+El operador usa un solo contacto de WhatsApp para el chat y para la llamada de voz. Meta habilita llamadas iniciadas por el usuario en Colombia y las entrega por SIP a LiveKit. Audio de banda ancha (Opus), sin costo de minutos. El teclado de WhatsApp manda tonos en la llamada, así que la cédula por teclado funciona. Requiere que el número de WhatsApp tenga un límite diario de al menos 2.000 destinatarios.
 
 ## Una llamada de “sin internet”
 
@@ -83,8 +76,6 @@ Prioridad del caso:
 | No llegó el correo de credenciales | Media, a Dirección de Censo |
 | El operador pidió hablar con una persona sin falla bloqueante | Normal |
 
-Más adelante, si la mesa quiere, el mismo agente puede pasar la llamada en vivo a su número actual. Técnicamente es un desvío a un número de Colombia y no le exige a la mesa una central; no entra en la prueba porque hoy no trabajan así.
-
 La mesa no tiene herramienta de casos. Se propone una consola propia sobre la misma base del agente; detalle y alternativas en [infraestructura.md](infraestructura.md#consola-de-casos).
 
 ## Arquitectura recomendada
@@ -93,10 +84,8 @@ Cadena en streaming: reconocimiento de voz, modelo y síntesis, cada etapa empez
 
 ```mermaid
 flowchart LR
-  OP[Operador] -->|Llamada WhatsApp| META[Meta SIP]
-  OP -->|Llamada telefónica| DID[DID Colombia]
+  OP[Operador] -->|WhatsApp chat o llamada| META[Meta SIP]
   META --> SIP[Servidor SIP]
-  DID --> SIP
   SIP --> AG[Agente de voz]
   AG --> STT[STT español]
   AG --> LLM[LLM: intención y lectura de respuesta]
@@ -116,10 +105,8 @@ Misma lógica que el diagrama anterior, con los productos concretos:
 
 ```mermaid
 flowchart LR
-  OP[Operador] -->|Llamada WhatsApp| META["Meta WhatsApp Calling API<br/>SIP"]
-  OP -->|Llamada telefónica| TRUNK["Trunk SIP<br/>Twilio o Telnyx<br/>DID Colombia"]
+  OP[Operador] -->|WhatsApp chat o llamada| META["Meta WhatsApp Cloud API<br/>mensajes y Calling API SIP"]
   META --> LK["LiveKit Cloud<br/>SIP, salas, BVC/Krisp"]
-  TRUNK --> LK
   LK --> VA["voice-agent<br/>LiveKit Agents<br/>ECS Fargate"]
   VA --> STT["Deepgram Nova-3<br/>STT español streaming"]
   VA --> LLM["Claude Haiku o GPT-4o mini<br/>intención y respuesta libre"]
@@ -138,9 +125,8 @@ Versión en imagen: [diagramas/arquitectura-voz-tecnologias.png](diagramas/arqui
 
 | Genérico | Tecnología | Qué hace |
 | --- | --- | --- |
-| Meta SIP | Meta WhatsApp Calling API (SIP) | Recibe la llamada que el operador inicia desde WhatsApp y la entrega por SIP al agente. Sin costo de minutos. |
-| DID Colombia | Trunk SIP — Twilio o Telnyx | Número telefónico de Colombia para quien llame sin datos o sin WhatsApp. |
-| Servidor SIP | LiveKit Cloud (SIP, salas, BVC/Krisp) | Termina la llamada, mezcla el audio, cancela ruido de fondo y conecta con el agente de voz. |
+| Meta SIP | Meta WhatsApp Calling API (SIP) | Recibe chat y llamada de voz que el operador inicia desde WhatsApp y entrega la llamada por SIP al agente. Sin costo de minutos. |
+| Servidor SIP | LiveKit Cloud (SIP, salas, BVC/Krisp) | Termina la llamada de WhatsApp, mezcla el audio, cancela ruido de fondo y conecta con el agente de voz. |
 | Agente de voz | voice-agent — LiveKit Agents en ECS Fargate | Orquesta cada llamada: escucha, interpreta, habla, lee el teclado y crea el caso. |
 | STT español | Deepgram Nova-3 | Convierte en texto, en vivo, lo que dice el operador. |
 | LLM | Claude Haiku o GPT-4o mini | Clasifica la intención inicial y traduce la respuesta libre a sí, no, no entendí o quiero una persona. |
@@ -183,7 +169,7 @@ La sesión vive en Redis por número de teléfono, con vencimiento de unas horas
 | --- | --- | --- | --- | --- |
 | **A. Cadena propia con LiveKit Agents** | Framework abierto con SIP propio, DTMF, transferencia en frío y asistida, cancelación de ruido. STT, LLM y TTS intercambiables. | Control del flujo, texto en cada turno para auditar y enmascarar, cambio de proveedor sin reescribir. Corre en LiveKit Cloud o en la VPC. | Más piezas que operar que una plataforma cerrada. | **Recomendada para el piloto.** |
 | B. Cadena propia con Pipecat | Framework abierto, pipeline más bajo nivel. | Muy flexible. | Sin servidor SIP propio; por WebSocket del operador no trae transferencias. Para SIP termina apoyándose en Daily o LiveKit. | Alternativa si el equipo ya lo conoce. |
-| C. Voz a voz (gpt-realtime-1.5, Gemini 3.1 Flash Live, Nova 2 Sonic) | Un solo modelo recibe audio y responde audio. | Conversación muy natural, interrupciones finas. Nova 2 Sonic corre en Bedrock y soporta español. | Entrenados con audio web; por teléfono de 8 kHz reconocen peor. No hay texto intermedio para controlar lo que se dice ni para enmascarar. Más caro por minuto. | Experimento, sobre todo para la entrada por WhatsApp. No para el árbol de pasos. |
+| C. Voz a voz (gpt-realtime-1.5, Gemini 3.1 Flash Live, Nova 2 Sonic) | Un solo modelo recibe audio y responde audio. | Conversación muy natural, interrupciones finas. Nova 2 Sonic corre en Bedrock y soporta español. | No hay texto intermedio para controlar lo que se dice ni para enmascarar. Más caro por minuto. | Experimento. No para el árbol de pasos. |
 | D. Plataforma administrada (Retell, Vapi, ElevenLabs Agents) | Se configura el agente en un panel y se conecta un número. | Demo funcionando en días. | El árbol queda dentro del producto, el audio y la transcripción en su nube, menos margen para la espera activa y la continuidad con WhatsApp. | Demo para el cliente antes de construir, si hace falta mostrar algo ya. |
 | E. IVR clásico solo con teclado | Árbol de opciones por DTMF en Asterisk o Amazon Connect. | Robusto en ruido, barato, sin IA. | No acompaña; el operador navega menús. | Modo de respaldo dentro del agente, no producto aparte. |
 
@@ -191,7 +177,7 @@ La A se queda con lo bueno de la E: si el reconocimiento falla dos veces seguida
 
 ## Proveedores de voz
 
-La latencia de punta a punta por teléfono, medida en llamadas reales, anda alrededor de 1,3 s en las plataformas conocidas. Por encima de 1,5 s el operador siente que nadie lo escucha. La síntesis suele ser el cuello de botella, no el modelo.
+La latencia de punta a punta en una llamada de WhatsApp, medida en llamadas reales, anda alrededor de 1,3 s en las plataformas conocidas. Por encima de 1,5 s el operador siente que nadie lo escucha. La síntesis suele ser el cuello de botella, no el modelo.
 
 | Etapa | Candidatos | Criterio |
 | --- | --- | --- |
@@ -247,7 +233,7 @@ Semana 1:
 
 Semana 2:
 
-- Número de Colombia en el agente; llamada de WhatsApp en cuanto Meta la habilite en el número.
+- Número de WhatsApp con llamadas habilitadas hacia LiveKit.
 - Cédula por teclado, espera activa, escalamiento con caso priorizado y número de caso por WhatsApp.
 - Un caso de prueba que la mesa recibe y devuelve, para medir el circuito completo.
 - Diez llamadas en un ambiente ruidoso, medidas con los indicadores de arriba.

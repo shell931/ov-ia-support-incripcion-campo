@@ -52,7 +52,7 @@ El arranque que se va a construir incluye desde el comienzo WhatsApp y el agente
 
 ## Respondido por el cliente (5 oct 2026)
 
-- El operador llama a la mesa desde un celular con minutos y datos.
+- El operador se comunica por WhatsApp (chat y llamada) desde un celular con datos.
 - La mesa atiende los casos; hoy no transfiere llamadas.
 - Se puede usar nube siempre que no viaje información sensible.
 

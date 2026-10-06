@@ -8,12 +8,10 @@ Qué hay que tener encendido para el asistente de WhatsApp, el agente de voz y l
 flowchart LR
   subgraph CAMPO["Puesto de inscripción"]
     OPW["Operador<br/>WhatsApp: chat y llamada"]
-    OPT["Operador<br/>llamada telefónica"]
   end
 
-  subgraph CANAL["Canales"]
+  subgraph CANAL["Canal WhatsApp"]
     META["Meta WhatsApp Cloud API<br/>mensajes y llamadas por SIP"]
-    TRUNK["Trunk SIP<br/>número de Colombia"]
     LK["LiveKit Cloud<br/>SIP, salas, ruido"]
   end
 
@@ -43,11 +41,9 @@ flowchart LR
   end
 
   OPW --> META
-  OPT --> TRUNK
   META -->|webhook| ALB --> GW --> SQS --> WRK
   WRK -->|respuestas| META
   META -->|llamada SIP| LK
-  TRUNK --> LK
   LK <-->|audio| VA
   VA --> IA
   WRK --> LLM
@@ -74,8 +70,7 @@ En el dibujo no aparecen Secrets Manager, CloudWatch ni el NAT Gateway, que usan
 | `worker` (ECS Fargate) | Corre la conversación de WhatsApp: motor de flujos, clasificación con el LLM, envío de respuestas, creación de casos. | Escala con la cola, no con el tráfico HTTP. |
 | `voice-agent` (ECS Fargate) | Proceso de LiveKit Agents. Cada llamada es una sesión: escucha, interpreta, habla, lee el teclado, crea el caso. | Se conecta hacia LiveKit Cloud por WebSocket saliente, así que no necesita puertos abiertos ni IP pública. |
 | Motor de flujos | Librería compartida por `worker` y `voice-agent`. Lee los YAML de los tres casos. | Un solo árbol para chat y voz. |
-| LiveKit Cloud | Recibe el SIP de Meta y del trunk, mezcla audio, cancela ruido y despacha la llamada a un `voice-agent` libre. | Evita operar un servidor SIP y media propio en el piloto. |
-| Trunk SIP | Número de Colombia para quien llame sin WhatsApp. | Twilio, Telnyx, Plivo o un operador local; se elige por precio del DID y cobertura. |
+| LiveKit Cloud | Recibe el SIP de las llamadas de WhatsApp, mezcla audio, cancela ruido y despacha la llamada a un `voice-agent` libre. | Evita operar un servidor SIP y media propio en el piloto. |
 | ElastiCache Redis | Sesión por teléfono: caso, paso, intentos. Vence en horas. | Permite retomar si la llamada se corta o si pasa del chat a la voz. |
 | RDS Postgres | Casos, historial enmascarado, versiones de flujos, métricas. | Una sola base para agente, consola e indicadores. |
 | S3 | Fotos de WhatsApp y audio presintetizado de cada paso. Retención acotada. | Los pasos fijos se sintetizan una vez y no suman latencia. |
@@ -103,7 +98,7 @@ Lo que tiene la consola en el piloto:
 - Cola ordenada por prioridad y por tiempo esperando.
 - Detalle del caso: puesto, número que llamó, cédula enmascarada, síntoma, pasos intentados, transcripción y fotos.
 - Tomar el caso, para que dos personas no llamen al mismo operador.
-- Botón de llamar, que abre la llamada normal o la de WhatsApp desde el celular de la mesa. No hace falta telefonía nueva.
+- Botón de llamar por WhatsApp desde el celular de la mesa.
 - Cerrar con causa (resuelto en la llamada, tableta reemplazada, enviado a Censo) y notas.
 - Aviso en el navegador y por correo cuando entra un caso alto.
 - Rol de Dirección de Censo: solo ve los casos de huella y credenciales.
@@ -142,7 +137,7 @@ flowchart LR
   GHA --> AUD["Síntesis de pasos<br/>audios a S3"]
 ```
 
-Dos ambientes: `dev`, compartido y con números de prueba, y `piloto`, con el número real de WhatsApp y el DID. Cuando procesos cambia el texto de un paso, el pipeline vuelve a sintetizar ese audio.
+Dos ambientes: `dev`, compartido y con número de prueba de WhatsApp, y `piloto`, con el número real de WhatsApp y llamadas habilitadas. Cuando procesos cambia el texto de un paso, el pipeline vuelve a sintetizar ese audio.
 
 ## Fuera del piloto
 

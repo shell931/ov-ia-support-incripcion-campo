@@ -15,10 +15,10 @@ Asistente de nivel 1 para operadores de puestos de inscripción. El canal de ayu
 
 ## Alcance de arranque
 
-Dos canales sobre el mismo flujo guiado:
+Un solo canal, WhatsApp, con dos modos sobre el mismo flujo guiado:
 
-1. WhatsApp (texto, y después foto y nota de voz).
-2. Llamada VoIP con un agente de voz que acompaña paso a paso.
+1. Chat (texto, y después foto y nota de voz).
+2. Llamada de voz con un agente que acompaña paso a paso.
 
 Casos cubiertos: primer logueo, tableta sin internet, tableta dañada o no disponible.
 
