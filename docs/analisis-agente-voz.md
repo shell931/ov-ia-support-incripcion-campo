@@ -110,6 +110,34 @@ flowchart LR
   MESA -->|Devuelve la llamada| OP
 ```
 
+### Con tecnologías del piloto
+
+Misma lógica que el diagrama anterior, con los productos concretos:
+
+```mermaid
+flowchart LR
+  OP[Operador] -->|Llamada WhatsApp| META["Meta WhatsApp Calling API<br/>SIP"]
+  OP -->|Llamada telefónica| TRUNK["Trunk SIP<br/>Twilio o Telnyx<br/>DID Colombia"]
+  META --> LK["LiveKit Cloud<br/>SIP, salas, BVC/Krisp"]
+  TRUNK --> LK
+  LK --> VA["voice-agent<br/>LiveKit Agents<br/>ECS Fargate"]
+  VA --> STT["Deepgram Nova-3<br/>STT español streaming"]
+  VA --> LLM["Claude Haiku o GPT-4o mini<br/>intención y respuesta libre"]
+  VA --> TTS["Cartesia Sonic<br/>TTS español"]
+  VA --> FL["Motor de flujos<br/>YAML en repo"]
+  FL --> RD[("ElastiCache Redis<br/>sesión")]
+  FL --> PG[("RDS Postgres<br/>casos")]
+  FL --> TK["Caso priorizado<br/>API gateway"]
+  FL --> WA["Meta WhatsApp Cloud API<br/>número de caso"]
+  TK --> CON["Consola de casos<br/>CloudFront + Cognito"]
+  CON --> MESA["Mesa de ayuda"]
+  MESA -->|Devuelve la llamada| OP
+```
+
+Versión en imagen: [diagramas/arquitectura-voz-tecnologias.png](diagramas/arquitectura-voz-tecnologias.png).
+
+Los audios fijos de cada paso salen de **S3** (presintetizados con Cartesia); las frases dinámicas se generan en vivo. Detalle de despliegue en [infraestructura.md](infraestructura.md).
+
 ### Quién decide qué se dice
 
 | Pieza | Hace | No hace |
