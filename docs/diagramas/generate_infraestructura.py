@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera docs/diagramas/infraestructura.png (diagrama + tabla Piezas)."""
+"""Genera docs/diagramas/infraestructura.png (diagrama + Piezas + costos)."""
 
 from __future__ import annotations
 
@@ -58,6 +58,35 @@ PIEZAS = [
     ("CloudFront + Cognito", "Consola web de la mesa con login por persona.", "Bandeja de casos sin herramienta previa."),
     ("SES", "Correo a mesa y Censo en casos altos.", "Aviso aunque nadie tenga la consola abierta."),
     ("Secrets Manager, CloudWatch", "Tokens de proveedores. Logs enmascarados y alarmas.", "—"),
+]
+
+COSTOS_SUBTITLE = (
+    "15 operadores · 22 días/mes · ≈660 incidencias · 50 % chat / 50 % voz · ≈2.000 min de voz · "
+    "precios de lista oct-2026, sin impuestos ni desarrollo"
+)
+
+# (concepto, detalle, usd_mes, tipo: group | row | total)
+COSTOS = [
+    ("AWS (us-east-1)", "", "≈ 215", "group"),
+    ("ECS Fargate", "2× voice-agent (1 vCPU, 2 GB), gateway y worker (0,25 vCPU, 0,5 GB)", "90", "row"),
+    ("Application Load Balancer", "Tráfico bajo", "22", "row"),
+    ("NAT Gateway", "Uno, más tráfico de salida", "35", "row"),
+    ("RDS Postgres", "db.t4g.micro, 20 GB, una zona", "15", "row"),
+    ("ElastiCache Redis", "cache.t4g.micro", "12", "row"),
+    ("WAF", "ACL y reglas administradas", "11", "row"),
+    ("IPv4 públicas", "ALB y NAT", "11", "row"),
+    ("CloudWatch", "Logs, métricas, alarmas", "10", "row"),
+    ("S3, CloudFront, Secrets, ECR, Route 53", "", "8", "row"),
+    ("Cognito, SES", "Dentro de la capa gratuita", "0", "row"),
+    ("Voz e IA", "", "≈ 82", "group"),
+    ("LiveKit Cloud, plan Ship", "Incluye 5.000 min SIP; se usan ≈2.000", "50", "row"),
+    ("Deepgram Nova-3 streaming", "2.000 min × 0,0077", "15", "row"),
+    ("LLM chico", "≈9.000 clasificaciones de ≈1.000 tokens", "10", "row"),
+    ("Cartesia, plan Pro", "Solo frases dinámicas; pasos presintetizados", "7", "row"),
+    ("WhatsApp", "", "≈ 3", "group"),
+    ("Llamadas de WhatsApp", "Iniciadas por el operador; sin costo empresa", "0", "row"),
+    ("Mensajes de WhatsApp", "1.000 gratis/mes; luego 0,0008 en Colombia", "3", "row"),
+    ("Total mensual", "≈ COP 1,0 millón a 3.340 COP/US$", "≈ 300", "total"),
 ]
 
 
@@ -388,64 +417,116 @@ def draw_diagram() -> Image.Image:
     return img
 
 
-def draw_table(width: int = W) -> Image.Image:
+def draw_section_table(
+    title: str,
+    subtitle: str | None,
+    headers: list[str],
+    cols: list[int],
+    rows: list[tuple],
+    *,
+    row_height: int = 54,
+    value_cols: int = 3,
+) -> Image.Image:
     table_head = font(16, bold=True)
     table_body = font(13)
     table_small = font(12)
+    table_bold = font(13, bold=True)
+    subtitle_font = font(12)
 
-    cols = [200, 430, 390]
-    row_h = 54
     header_h = 42
     pad = 10
-    rows = len(PIEZAS)
-    height = header_h + rows * row_h + 60
+    title_y = 16
+    subtitle_y = 42 if subtitle else 0
+    table_top = 48 if not subtitle else 62
+    table_h = header_h + len(rows) * row_height
+    height = table_top + table_h + 24
 
-    img = Image.new("RGB", (width, height), BG)
+    img = Image.new("RGB", (W, height), BG)
     draw = ImageDraw.Draw(img)
+    draw.text((MARGIN, title_y), title, fill=COLORS["title"], font=table_head)
 
-    draw.text((MARGIN, 16), "Piezas", fill=COLORS["title"], font=table_head)
+    if subtitle:
+        for i, line in enumerate(wrap_text(subtitle, subtitle_font, W - MARGIN * 2)):
+            draw.text((MARGIN, subtitle_y + i * 16), line, fill=COLORS["subtitle"], font=subtitle_font)
 
     x0 = MARGIN
-    y0 = 48
+    y0 = table_top
     table_w = sum(cols) + pad * 2
-    rounded_rect(draw, (x0, y0, x0 + table_w, y0 + header_h + rows * row_h), 10, WHITE, COLORS["table_border"])
+    rounded_rect(draw, (x0, y0, x0 + table_w, y0 + table_h), 10, WHITE, COLORS["table_border"])
 
-    headers = ["Pieza", "Qué hace", "Por qué así"]
     cx = x0 + pad
-    for i, (header, cw) in enumerate(zip(headers, cols)):
+    for header, cw in zip(headers, cols):
         rounded_rect(draw, (cx, y0, cx + cw, y0 + header_h), 0, COLORS["table_header"], COLORS["table_header"])
         draw.text((cx + 8, y0 + 12), header, fill=WHITE, font=table_head)
         cx += cw
 
-    for r, (piece, what, why) in enumerate(PIEZAS):
-        ry = y0 + header_h + r * row_h
-        fill = COLORS["table_row_a"] if r % 2 == 0 else COLORS["table_row_b"]
-        draw.rectangle((x0 + 1, ry, x0 + table_w - 1, ry + row_h), fill=fill)
-        draw.line((x0, ry + row_h, x0 + table_w, ry + row_h), fill=COLORS["table_border"], width=1)
+    for r, row in enumerate(rows):
+        ry = y0 + header_h + r * row_height
+        kind = row[-1] if len(row) > value_cols else "row"
+        values = list(row[:value_cols])
+
+        if kind == "group":
+            fill = "#e2e8f0"
+            fnt = table_bold
+        elif kind == "total":
+            fill = "#dbeafe"
+            fnt = table_bold
+        else:
+            fill = COLORS["table_row_a"] if r % 2 == 0 else COLORS["table_row_b"]
+            fnt = table_body
+
+        draw.rectangle((x0 + 1, ry, x0 + table_w - 1, ry + row_height), fill=fill)
+        draw.line((x0, ry + row_height, x0 + table_w, ry + row_height), fill=COLORS["table_border"], width=1)
 
         cx = x0 + pad
-        values = [piece, what, why]
-        fonts_use = [table_body, table_small, table_small]
-        for cw, text, fnt in zip(cols, values, fonts_use):
-            lines = wrap_text(text, fnt, cw - 16)
+        fonts_use = [fnt, table_small if kind == "row" else fnt, fnt]
+        for cw, text, fnt_use in zip(cols, values, fonts_use):
+            lines = wrap_text(text, fnt_use, cw - 16)
             ty = ry + 8
             for line in lines[:3]:
-                draw.text((cx + 8, ty), line, fill=COLORS["title"], font=fnt)
+                anchor_x = cx + cw - 8 if cw == cols[-1] and text.startswith(("≈", "0")) else cx + 8
+                draw.text((anchor_x, ty), line, fill=COLORS["title"], font=fnt_use)
                 ty += 16
             cx += cw
 
     return img
 
 
+def draw_piezas_table() -> Image.Image:
+    return draw_section_table(
+        "Piezas",
+        None,
+        ["Pieza", "Qué hace", "Por qué así"],
+        [200, 430, 390],
+        [(*row, "row") for row in PIEZAS],
+    )
+
+
+def draw_costos_table() -> Image.Image:
+    return draw_section_table(
+        "Costos mensuales estimados del piloto",
+        COSTOS_SUBTITLE,
+        ["Concepto", "Detalle", "US$ / mes"],
+        [240, 520, 110],
+        COSTOS,
+        row_height=40,
+    )
+
+
 def compose() -> None:
     diagram = draw_diagram()
-    table = draw_table(W)
+    piezas = draw_piezas_table()
+    costos = draw_costos_table()
 
-    gap = 24
-    total_h = diagram.height + gap + table.height
+    gap = 32
+    y = 0
+    total_h = diagram.height + gap + piezas.height + gap + costos.height
     out = Image.new("RGB", (W, total_h), BG)
-    out.paste(diagram, (0, 0))
-    out.paste(table, (0, diagram.height + gap))
+    out.paste(diagram, (0, y))
+    y += diagram.height + gap
+    out.paste(piezas, (0, y))
+    y += piezas.height + gap
+    out.paste(costos, (0, y))
 
     diagram.save(OUT_DIAGRAM, "PNG", optimize=True)
     out.save(OUT, "PNG", optimize=True)

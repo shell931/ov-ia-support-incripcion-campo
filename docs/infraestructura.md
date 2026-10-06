@@ -16,7 +16,7 @@ Flujo paso a paso (chat y voz en paralelo, datos compartidos, escalamiento sin t
 | **6** | Respuesta por WhatsApp al operador | Guía hablada paso a paso |
 | **7–10** | Caso en Postgres → SES + consola → mesa toma el caso → devuelve la llamada por WhatsApp | Igual |
 
-Versión en imagen (diagrama + tabla Piezas): [diagramas/infraestructura.png](diagramas/infraestructura.png).
+Versión en imagen (diagrama + tablas Piezas y costos): [diagramas/infraestructura.png](diagramas/infraestructura.png).
 
 Solo el diagrama, sin la tabla: [diagramas/infraestructura-diagrama.png](diagramas/infraestructura-diagrama.png).
 
