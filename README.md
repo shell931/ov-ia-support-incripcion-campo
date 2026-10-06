@@ -12,7 +12,7 @@ Asistente de nivel 1 para operadores de puestos de inscripción. El canal de ayu
 | [docs/analisis-agente-voz.md](docs/analisis-agente-voz.md) | Cómo se comporta el agente de voz, opciones de construcción y prueba de concepto. |
 | [docs/infraestructura.md](docs/infraestructura.md) | Diagrama de infraestructura, consola de casos y dimensionamiento. |
 | [docs/costos.md](docs/costos.md) | Costo mensual estimado del piloto para 15 operadores. |
-| [docs/tiempos.md](docs/tiempos.md) | Calendario de implementación en días hábiles (PoC a piloto en campo). |
+| [docs/tiempos.md](docs/tiempos.md) | Calendario de implementación para una persona (PoC a piloto en campo) e historias de usuario. |
 
 ## Alcance de arranque
 
