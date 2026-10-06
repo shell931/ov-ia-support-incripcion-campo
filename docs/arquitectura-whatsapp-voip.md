@@ -7,7 +7,7 @@ Qué hay que construir y qué hay que dejar desplegado para acompañar al operad
 Un servicio propio (orquestador) con dos adaptadores:
 
 - WhatsApp Cloud API, directo o por un BSP.
-- Voz por WebSocket de audio (Media Streams o SIP) hacia ese mismo orquestador.
+- Voz por SIP (llamada de WhatsApp o número de Colombia) hacia un agente en LiveKit que usa ese mismo orquestador.
 
 El procedimiento vive en archivos de flujo, no en el prompt. El modelo solo clasifica la intención, saca datos (cédula, puesto, serial) y traduce una frase libre a sí, no, no entendí o quiero un humano.
 
@@ -32,15 +32,17 @@ Reglas de escalamiento, iguales en los dos canales:
 | Motor | Estado de la sesión, avance, intentos, motivo de escalamiento. | Python. Sin LLM en el camino feliz. |
 | Clasificador | Intención inicial y lectura de la respuesta libre. | Una llamada corta al LLM, con salida cerrada. |
 | Adaptador WhatsApp | Webhook, envío, botones, descarga de media. | Texto y botones. Foto y nota de voz después. |
-| Adaptador de voz | Audio en tiempo real, corte de frase, interrupción, DTMF, transferencia. | Mismos tres flujos. |
+| Adaptador de voz | Audio en tiempo real, corte de frase, interrupción, DTMF, espera activa. | Mismos tres flujos. |
 | Sesión | Teléfono, caso abierto, paso actual. | Redis. |
 | Casos | Transcripción enmascarada, resultado, puesto, tiempos. | Postgres. |
 | Herramientas | Crear ticket, pedir reenvío, registrar novedad de equipo, escalar. | Ticket y novedad reales. Reenvío e inventario quedan como solicitud registrada hasta que exista API. |
-| Handoff | Pasar historial a una persona. | En WhatsApp, bandeja. En voz, transferencia de la llamada y el id del caso. |
+| Escalamiento | Dejar el caso a la mesa con el historial. La mesa no transfiere llamadas: atiende casos y devuelve la llamada. | Caso priorizado en la herramienta de la mesa y número de caso al operador por WhatsApp. |
 
 Identidad mínima antes de actuar sobre credenciales o equipo: cédula y un dato de verificación (puesto o correo enmascarado). No se pide ni se guarda la huella.
 
 ## Qué desplegar
+
+Diagrama, consola de casos y dimensionamiento en [infraestructura.md](infraestructura.md).
 
 Un solo ambiente de piloto, con esto encendido:
 
@@ -53,32 +55,32 @@ Un solo ambiente de piloto, con esto encendido:
 | Secretos | SSM o Secrets Manager | Tokens de Meta, voz, STT, TTS y LLM. |
 | LLM por API | El proveedor que ya usen, o Bedrock | Solo clasificación y extracción. |
 | STT en español | Deepgram u otro streaming `es` | Transcripción de la llamada. |
-| TTS en español | Polly neural (es-US o es-MX) | Locución corta. |
+| TTS en español | Cartesia Sonic o ElevenLabs Flash, voz latina | Locución corta. Polly queda lento para conversación (800–1.500 ms al primer audio). |
+| Agente de voz | LiveKit Agents en LiveKit Cloud (el cliente acepta nube sin datos sensibles) | SIP, DTMF y cancelación de ruido. Detalle en [analisis-agente-voz.md](analisis-agente-voz.md). |
 | Número de WhatsApp | Meta Business, en verificación desde el día uno | La aprobación del nombre comercial tarda días. |
 | DID Colombia | Trunk SIP o CPaaS con número local | Que la llamada del puesto no sea internacional. |
 | Aviso de grabación | En el saludo de la llamada | Base para conservar el audio. |
 
 La guía offline de la tableta, el tablero completo y el modelo local de CSC no entran en este despliegue. El contenedor queda preparado para cambiar el clasificador a un modelo en la VPC si el cliente lo exige.
 
-## Tres formas de contratar el canal
+## Cómo entra la llamada
 
-El cerebro es el mismo. Cambia quién lleva el número y el audio.
+El agente de voz corre en LiveKit Agents y recibe SIP por dos lados:
 
-| Opción | Cuándo conviene | Qué queda afuera de nuestra VPC |
+| Entrada | Cuándo conviene | Qué queda afuera de nuestra VPC |
 | --- | --- | --- |
-| Infobip para WhatsApp y voz | Un solo contrato, número de Colombia y operación en la región. Es la opción más sana si el piloto sale a puestos reales pronto. | Texto, audio y media pasan por Infobip y por Meta. |
-| Twilio: WhatsApp + Programmable Voice (Media Streams) | Laboratorio y primera integración más rápida, con SDK maduro. | Igual: el audio pasa por Twilio. Hay que confirmar que entreguen un DID de Colombia; si no, no sirve para el puesto. |
-| LiveKit en la VPC + trunk SIP colombiano | Cuando el cliente pida que el audio y la transcripción no salgan, alineado con el modelo local de CSC. | Meta sigue viendo WhatsApp. El audio de la llamada puede quedarse en la VPC. STT y TTS locales sustituyen a Deepgram y Polly. Más operación. |
+| Llamada de WhatsApp al número de soporte | El celular tiene datos. Meta entrega la llamada por SIP; mismo número que el chat, audio de banda ancha, sin minutos. | Meta ve la llamada. |
+| DID colombiano en un trunk SIP (Twilio, Telnyx, Plivo o un operador local) | Sin datos, solo señal de voz. | El operador del trunk ve el audio. |
 
-Camino recomendado: piloto con Infobip si necesitan el número local ya, o con Twilio si el primer mes es laboratorio y el DID de Colombia está confirmado. El servicio propio no se ata al proveedor: el adaptador es una interfaz. LiveKit queda como el paso siguiente si aparece la restricción de soberanía, no como el primer despliegue.
+LiveKit Cloud es el arranque más rápido. Si el cliente pide que el audio no salga, el mismo agente se mueve a LiveKit en la VPC con STT y TTS locales, sin cambiar los flujos.
 
-Retell, Vapi o un contact center completo (Amazon Connect, Twilio Flex) aceleran una demo y meten la conversación en un producto que no controla el árbol de pasos. No son el camino de este repo.
+Retell, Vapi o un contact center completo (Amazon Connect, Twilio Flex) aceleran una demo y meten la conversación en un producto que no controla el árbol de pasos. Sirven para mostrar algo en días, no como base de este repo.
 
 ## Corte de la primera entrega
 
 1. Flujos de los tres casos y un simulador por consola, sin teléfono.
-2. WhatsApp de texto con botones, ticket al escalar y bandeja simple para la mesa.
-3. Llamada con el mismo árbol, DTMF y transferencia a la mesa.
+2. WhatsApp de texto con botones y caso priorizado al escalar.
+3. Llamada con el mismo árbol, DTMF y caso priorizado; la mesa devuelve la llamada.
 4. Medición mínima: resuelta por el asistente, escalada, tiempo a primera respuesta, tiempo a cierre.
 
 Fuera de ese corte: foto del cargador, nota de voz de WhatsApp, reenvío automático de credenciales, inventario, tablero por municipio y la app offline.

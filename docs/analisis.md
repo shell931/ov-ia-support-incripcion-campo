@@ -50,11 +50,15 @@ El MVP del PDF es WhatsApp, consola humana, los tres flujos, tickets y un tabler
 
 El arranque que se va a construir incluye desde el comienzo WhatsApp y el agente de voz. La guía offline, el reenvío por API de Censo y el inventario completo siguen fuera de esta primera entrega.
 
-## Pendiente de negocio (sigue abierto)
+## Respondido por el cliente (5 oct 2026)
+
+- El operador llama a la mesa desde un celular con minutos y datos.
+- La mesa atiende los casos; hoy no transfiere llamadas.
+- Se puede usar nube siempre que no viaje información sensible.
+
+## Pendiente de negocio
 
 - Volumen de operadores, puestos y picos de jornada.
-- Mesa de ayuda actual y si tiene API.
-- Si el operador tiene WhatsApp y si el canal está permitido.
+- Herramienta donde la mesa ve sus casos y si tiene API.
 - Si Dirección de Censo expone consulta de operador y reenvío de credenciales.
-- Nube o cómputo local.
 - Incidencias además de las tres ya levantadas.

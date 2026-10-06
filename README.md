@@ -9,6 +9,9 @@ Asistente de nivel 1 para operadores de puestos de inscripción. El canal de ayu
 | [docs/fuente/incripcion-campo.pdf](docs/fuente/incripcion-campo.pdf) | Propuesta original (levantamiento de necesidad y solución). |
 | [docs/analisis.md](docs/analisis.md) | Lectura del PDF: casos, restricciones y alcance. |
 | [docs/arquitectura-whatsapp-voip.md](docs/arquitectura-whatsapp-voip.md) | Qué implementar y desplegar para WhatsApp y el agente de voz. |
+| [docs/analisis-agente-voz.md](docs/analisis-agente-voz.md) | Cómo se comporta el agente de voz, opciones de construcción y prueba de concepto. |
+| [docs/infraestructura.md](docs/infraestructura.md) | Diagrama de infraestructura, consola de casos y dimensionamiento. |
+| [docs/costos.md](docs/costos.md) | Costo mensual estimado del piloto para 15 operadores. |
 
 ## Alcance de arranque
 
