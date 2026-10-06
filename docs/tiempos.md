@@ -63,15 +63,15 @@ Suma de piezas: **66 días**. Más arranque (2) y un margen corto de integració
 
 ## Historias de usuario
 
-Esfuerzo en días hábiles de **una persona**, alineado con la tabla de piezas. Las de fundación van primero; las de valor las reutilizan. El total vuelve a ~70 días con el piloto en campo.
+Esfuerzo en días hábiles de **una persona**, alineado con la tabla de piezas. Las de infraestructura van primero; las de valor las reutilizan. El total vuelve a ~70 días con el piloto en campo.
 
-### Fundación
+### Infraestructura
 
 | ID | Historia | Días | Pieza |
 | --- | --- | ---: | --- |
-| F1 | Como desarrollo, dejo AWS listo para correr gateway, worker y voice-agent en `dev` y `piloto`. | 10 | Terraform, CI/CD |
-| F2 | Como procesos, defino los tres árboles en YAML (texto, transiciones, tope de intentos, escalar) y el motor los ejecuta sin que el LLM redacte el procedimiento. | 8 | Motor de flujos |
-| F3 | Como agente, guardo sesión por teléfono (paso, intentos, caso) y persisto el caso en Postgres. | 4 | Redis + Postgres |
+| I1 | Como desarrollo, dejo AWS listo para correr gateway, worker y voice-agent en `dev` y `piloto`. | 10 | Terraform, CI/CD |
+| I2 | Como procesos, defino los tres árboles en YAML (texto, transiciones, tope de intentos, escalar) y el motor los ejecuta sin que el LLM redacte el procedimiento. | 8 | Motor de flujos |
+| I3 | Como agente, guardo sesión por teléfono (paso, intentos, caso) y persisto el caso en Postgres. | 4 | Redis + Postgres |
 
 ### Operador — chat
 
@@ -107,7 +107,7 @@ Esfuerzo en días hábiles de **una persona**, alineado con la tabla de piezas. 
 
 | | Días |
 | --- | ---: |
-| Fundación F1–F3 | 22 |
+| Infraestructura I1–I3 | 22 |
 | Chat O1–O3 | 8 |
 | Voz O4–O7 | 16 |
 | Mesa M1–M3 | 10 |
