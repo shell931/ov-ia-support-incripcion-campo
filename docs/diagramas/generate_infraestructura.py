@@ -152,6 +152,31 @@ def wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[s
     return lines or [""]
 
 
+V_GAP = 56
+SECTION_GAP = 68
+LANE_GAP = 54
+BADGE_R = 15
+BOX_RADIUS = 12
+LANE_H = 36
+STROKE = 2
+HEAD_W = 6
+HEAD_L = 10
+
+
+def draw_step_badge_at(
+    draw: ImageDraw.ImageDraw,
+    center: tuple[int, int],
+    number: str,
+    badge_font: ImageFont.FreeTypeFont,
+) -> None:
+    x, y = center
+    r = BADGE_R
+    draw.ellipse((x - r, y - r, x + r, y + r), fill=COLORS["step"], outline=COLORS["step"])
+    bbox = draw.textbbox((0, 0), number, font=badge_font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    draw.text((x - tw / 2 - bbox[0], y - th / 2 - bbox[1]), number, fill=COLORS["step_text"], font=badge_font)
+
+
 def draw_box(
     draw: ImageDraw.ImageDraw,
     x: int,
@@ -162,101 +187,162 @@ def draw_box(
     style: dict[str, str],
     title_font: ImageFont.FreeTypeFont,
     body_font: ImageFont.FreeTypeFont,
-    pad: int = 12,
+    pad: int = 14,
+    step: str | None = None,
+    badge_font: ImageFont.FreeTypeFont | None = None,
 ) -> tuple[int, int, int, int]:
+    """Dibuja una caja. El número de paso va dentro, a la izquierda."""
+    text_x = x + pad + (BADGE_R * 2 + 12 if step else 0)
+    text_w = (x + w - pad) - text_x
+
     wrapped: list[str] = []
     for line in lines:
-        wrapped.extend(wrap_text(line, body_font, w - pad * 2))
-    title_h = title_font.getbbox(title)[3] - title_font.getbbox(title)[1] + 6
-    line_h = body_font.getbbox("Ag")[3] - body_font.getbbox("Ag")[1] + 4
-    h = pad * 2 + title_h + len(wrapped) * line_h
+        wrapped.extend(wrap_text(line, body_font, text_w))
+
+    title_h = title_font.getbbox("Ag")[3] + 7
+    line_h = body_font.getbbox("Ag")[3] + 5
+    content_h = title_h + len(wrapped) * line_h
+    h = max(pad * 2 + content_h, BADGE_R * 2 + pad * 2)
+
     box = (x, y, x + w, y + h)
-    rounded_rect(draw, box, 12, style["bg"], style["border"])
-    draw.text((x + pad, y + pad), title, fill=style["text"], font=title_font)
-    ty = y + pad + title_h
+    rounded_rect(draw, box, BOX_RADIUS, style["bg"], style["border"])
+
+    if step:
+        draw_step_badge_at(draw, (x + pad + BADGE_R, y + h // 2), step, badge_font or title_font)
+
+    ty = y + (h - content_h) // 2
+    draw.text((text_x, ty), title, fill=style["text"], font=title_font)
+    ty += title_h
     for line in wrapped:
-        draw.text((x + pad, ty), line, fill=style["text"], font=body_font)
+        draw.text((text_x, ty), line, fill=style["text"], font=body_font)
         ty += line_h
     return box
 
 
-V_GAP = 52
-SECTION_GAP = 64
-LANE_GAP = 56
-BADGE_R = 16
-
-
-def arrow_down(draw: ImageDraw.ImageDraw, x: int, y1: int, y2: int, gap: int = 10) -> None:
-    y1 = y1 + gap
-    y2 = y2 - gap
-    if y2 <= y1 + 8:
-        return
-    draw.line((x, y1, x, y2 - 8), fill=COLORS["arrow"], width=2)
-    draw.polygon([(x, y2), (x - 6, y2 - 10), (x + 6, y2 - 10)], fill=COLORS["arrow"])
-
-
-def arrow_right(draw: ImageDraw.ImageDraw, x1: int, y: int, x2: int, gap: int = 10) -> None:
-    x1 = x1 + gap
-    x2 = x2 - gap
-    if x2 <= x1 + 8:
-        return
-    draw.line((x1, y, x2 - 8, y), fill=COLORS["arrow"], width=2)
-    draw.polygon([(x2, y), (x2 - 10, y - 6), (x2 - 10, y + 6)], fill=COLORS["arrow"])
-
-
-def arrow_split_down(
+def draw_lane_title(
     draw: ImageDraw.ImageDraw,
-    top_x: int,
-    top_y: int,
-    left_x: int,
-    right_x: int,
-    bottom_y: int,
-) -> None:
-    """Una salida arriba que se divide hacia dos carriles."""
-    mid_y = top_y + (bottom_y - top_y) // 2
-    draw.line((top_x, top_y, top_x, mid_y), fill=COLORS["arrow"], width=2)
-    draw.line((left_x, mid_y, right_x, mid_y), fill=COLORS["arrow"], width=2)
-    arrow_down(draw, left_x, mid_y, bottom_y, gap=0)
-    arrow_down(draw, right_x, mid_y, bottom_y, gap=0)
+    x: int,
+    y: int,
+    w: int,
+    text: str,
+    bg: str,
+    border: str,
+    text_color: str,
+    lane_font: ImageFont.FreeTypeFont,
+    step: str | None = None,
+    badge_font: ImageFont.FreeTypeFont | None = None,
+) -> tuple[int, int, int, int]:
+    bar = (x, y, x + w, y + LANE_H)
+    rounded_rect(draw, bar, LANE_H // 2, bg, border, 1)
+    tw = text_width(text, lane_font)
+    cy = y + LANE_H // 2
+    badge_w = BADGE_R * 2 + 10 if step else 0
+    tx = x + (w - tw + badge_w) // 2
+    if step:
+        draw_step_badge_at(draw, (tx - badge_w + BADGE_R, cy), step, badge_font or lane_font)
+    draw.text((tx, cy - lane_font.getbbox("Ag")[3] // 2 - 1), text, fill=text_color, font=lane_font)
+    return bar
 
 
-def arrow_merge_down(
+def _head_down(draw: ImageDraw.ImageDraw, x: int, y: int, color: str) -> None:
+    draw.polygon([(x, y), (x - HEAD_W, y - HEAD_L), (x + HEAD_W, y - HEAD_L)], fill=color)
+
+
+def _head_right(draw: ImageDraw.ImageDraw, x: int, y: int, color: str) -> None:
+    draw.polygon([(x, y), (x - HEAD_L, y - HEAD_W), (x - HEAD_L, y + HEAD_W)], fill=color)
+
+
+def connect_down(draw: ImageDraw.ImageDraw, x: int, y_from: int, y_to: int) -> None:
+    """Flecha vertical entre el borde inferior de una caja y el superior de la siguiente."""
+    if y_to - y_from < HEAD_L + 4:
+        return
+    draw.line((x, y_from, x, y_to - HEAD_L + 1), fill=COLORS["arrow"], width=STROKE)
+    _head_down(draw, x, y_to, COLORS["arrow"])
+
+
+def connect_right(draw: ImageDraw.ImageDraw, y: int, x_from: int, x_to: int) -> None:
+    if x_to - x_from < HEAD_L + 4:
+        return
+    draw.line((x_from, y, x_to - HEAD_L + 1, y), fill=COLORS["arrow"], width=STROKE)
+    _head_right(draw, x_to, y, COLORS["arrow"])
+
+
+def connect_split(
     draw: ImageDraw.ImageDraw,
-    left_x: int,
-    right_x: int,
-    top_y: int,
-    bottom_x: int,
-    bottom_y: int,
+    x_from: int,
+    y_from: int,
+    targets: list[int],
+    y_to: int,
 ) -> None:
-    """Dos carriles convergen hacia un punto central abajo."""
-    mid_y = top_y + (bottom_y - top_y) // 2
-    arrow_down(draw, left_x, top_y, mid_y, gap=10)
-    arrow_down(draw, right_x, top_y, mid_y, gap=10)
-    draw.line((left_x, mid_y, right_x, mid_y), fill=COLORS["arrow"], width=2)
-    arrow_down(draw, bottom_x, mid_y, bottom_y, gap=0)
+    """Un origen arriba que se reparte en varios destinos abajo, con codo horizontal."""
+    y_bus = y_from + (y_to - y_from) // 2
+    span = targets + [x_from]
+    draw.line((x_from, y_from, x_from, y_bus), fill=COLORS["arrow"], width=STROKE)
+    draw.line((min(span), y_bus, max(span), y_bus), fill=COLORS["arrow"], width=STROKE)
+    for tx in targets:
+        draw.line((tx, y_bus, tx, y_to - HEAD_L + 1), fill=COLORS["arrow"], width=STROKE)
+        _head_down(draw, tx, y_to, COLORS["arrow"])
 
 
-def arrow_left_dashed(draw: ImageDraw.ImageDraw, x1: int, y: int, x2: int, label: str, font) -> None:
-    step = 12
-    x = x1
-    while x > x2 + 8:
-        nx = max(x - step, x2 + 8)
-        draw.line((x, y, nx, y), fill=COLORS["mesa_border"], width=2)
-        x -= step * 2
-    draw.polygon([(x2, y), (x2 + 10, y - 6), (x2 + 10, y + 6)], fill=COLORS["mesa_border"])
-    tw = text_width(label, font)
-    draw.text(((x1 + x2) // 2 - tw // 2, y - 22), label, fill=COLORS["mesa_text"], font=font)
+def connect_merge(
+    draw: ImageDraw.ImageDraw,
+    sources: list[int],
+    y_from: int,
+    x_to: int,
+    y_to: int,
+) -> None:
+    """Varios orígenes arriba que confluyen en un destino abajo, con codo horizontal."""
+    y_bus = y_from + (y_to - y_from) // 2
+    for sx in sources:
+        draw.line((sx, y_from, sx, y_bus), fill=COLORS["arrow"], width=STROKE)
+    draw.line((min(sources + [x_to]), y_bus, max(sources + [x_to]), y_bus), fill=COLORS["arrow"], width=STROKE)
+    draw.line((x_to, y_bus, x_to, y_to - HEAD_L + 1), fill=COLORS["arrow"], width=STROKE)
+    _head_down(draw, x_to, y_to, COLORS["arrow"])
 
 
-def gap_center_y(box_a: tuple[int, int, int, int], box_b: tuple[int, int, int, int]) -> int:
-    return (box_a[3] + box_b[1]) // 2
+def connect_down_dashed(draw: ImageDraw.ImageDraw, x: int, y_from: int, y_to: int, color: str) -> None:
+    dash, gap = 9, 7
+    y = y_from
+    limit = y_to - HEAD_L + 1
+    while y < limit:
+        draw.line((x, y, x, min(y + dash, limit)), fill=color, width=STROKE)
+        y += dash + gap
+    draw.polygon([(x, y_to), (x - HEAD_W, y_to - HEAD_L), (x + HEAD_W, y_to - HEAD_L)], fill=color)
 
 
-def draw_lane_title(draw, x, y, w, text, bg, border, text_color, font):
-    rounded_rect(draw, (x, y, x + w, y + 34), 8, bg, border, 1)
-    bbox = font.getbbox(text)
-    tw = bbox[2] - bbox[0]
-    draw.text((x + (w - tw) // 2, y + 8), text, fill=text_color, font=font)
+def box_height(
+    w: int,
+    title: str,
+    lines: list[str],
+    title_font: ImageFont.FreeTypeFont,
+    body_font: ImageFont.FreeTypeFont,
+    pad: int = 14,
+    step: bool = False,
+) -> int:
+    """Alto que tendrá draw_box con los mismos parámetros, para la pasada de layout."""
+    text_w = w - pad * 2 - (BADGE_R * 2 + 12 if step else 0)
+    count = sum(len(wrap_text(line, body_font, text_w)) for line in lines)
+    title_h = title_font.getbbox("Ag")[3] + 7
+    line_h = body_font.getbbox("Ag")[3] + 5
+    return max(pad * 2 + title_h + count * line_h, BADGE_R * 2 + pad * 2)
+
+
+def draw_pill(
+    draw: ImageDraw.ImageDraw,
+    x: int,
+    y: int,
+    w: int,
+    text: str,
+    bg: str,
+    border: str,
+    text_color: str,
+    pill_font: ImageFont.FreeTypeFont,
+) -> tuple[int, int, int, int]:
+    h = 40
+    rounded_rect(draw, (x, y, x + w, y + h), h // 2, bg, border, 2)
+    tw = text_width(text, pill_font)
+    draw.text((x + (w - tw) // 2, y + h // 2 - pill_font.getbbox("Ag")[3] // 2 - 1), text, fill=text_color, font=pill_font)
+    return (x, y, x + w, y + h)
 
 
 def draw_diagram() -> Image.Image:
@@ -275,50 +361,86 @@ def draw_diagram() -> Image.Image:
     data_style = {"bg": COLORS["data_bg"], "border": COLORS["data_border"], "text": COLORS["data_text"]}
     mesa_style = {"bg": COLORS["mesa_bg"], "border": COLORS["mesa_border"], "text": COLORS["mesa_text"]}
 
-    chat_x, voice_x = MARGIN, W // 2 + 10
-    lane_w = (W - MARGIN * 2 - 20) // 2
-    chat_cx = chat_x + lane_w // 2
-    voice_cx = voice_x + lane_w // 2
-    inner_w = lane_w - 40
+    lane_gap_x = 24
+    lane_w = (W - MARGIN * 2 - lane_gap_x) // 2
+    chat_x = MARGIN
+    voice_x = MARGIN + lane_w + lane_gap_x
+    inner_pad = 22
+    inner_w = lane_w - inner_pad * 2
+    chat_bx, voice_bx = chat_x + inner_pad, voice_x + inner_pad
+    chat_cx, voice_cx = chat_x + lane_w // 2, voice_x + lane_w // 2
+    center = W // 2
 
-    # --- layout pass: compute Y positions ---
-    y = 100
-    op_x, op_w = MARGIN + 420, 520
-    op_y = y
-    y += 78 + SECTION_GAP
-
-    lane_y = y
-    y += 42 + LANE_GAP
-
-    box_defs = [
-        ("Meta WhatsApp Cloud API", ["Recibe mensaje del operador"], chat_style),
-        ("WAF + ALB → gateway → SQS", ["Webhook rápido 200 · mensaje en cola"], aws_style),
-        ("worker + motor de flujos", ["Clasifica con LLM · responde · crea caso si aplica"], aws_style),
+    chat_defs = [
+        ("2", "Meta WhatsApp Cloud API", ["Recibe el mensaje del operador"], chat_style),
+        ("3", "WAF + ALB → gateway → SQS", ["Responde 200 al webhook y encola el mensaje"], aws_style),
+        ("4", "worker + motor de flujos", ["Clasifica con el LLM, responde y crea el caso si aplica"], aws_style),
     ]
     voice_defs = [
-        ("Meta → LiveKit Cloud", ["Llamada SIP, salas, cancelación de ruido"], voice_style),
-        ("voice-agent (LiveKit Agents)", ["Una sesión por llamada activa"], aws_style),
-        ("Deepgram → LLM → Cartesia", ["Escucha · intención · habla · audio de pasos en S3"], ai_style),
+        ("2", "Meta → LiveKit Cloud", ["Llamada SIP, salas y cancelación de ruido"], voice_style),
+        ("3", "voice-agent (LiveKit Agents)", ["Una sesión por llamada activa"], aws_style),
+        ("4", "Deepgram → LLM → Cartesia", ["Escucha, interpreta y habla con audio de pasos en S3"], ai_style),
+    ]
+    data_defs = [
+        ("Redis", ["Sesión: caso, paso e intentos"]),
+        ("Postgres", ["Casos, historial, flujos y métricas"]),
+        ("S3", ["Fotos y audios presintetizados"]),
+    ]
+    esc_defs = [
+        ("7", "Caso en Postgres", ["Prioridad y detalle del fallo"]),
+        ("8", "SES + consola", ["Correo y bandeja CloudFront + Cognito"]),
+        ("9", "Mesa toma el caso", ["Evita doble llamada al operador"]),
+        ("10", "Devuelve la llamada", ["Desde el celular de la mesa por WhatsApp"]),
     ]
 
-    chat_ys: list[int] = []
-    voice_ys: list[int] = []
-    for _ in range(3):
-        chat_ys.append(y)
-        voice_ys.append(y)
-        y += 72 + V_GAP
+    # --- pasada de layout ---
+    op_w = 600
+    op_x = (W - op_w) // 2
+    op_y = 104
+    op_h = box_height(op_w, "Operador en puesto de inscripción", ["WhatsApp: mensajes de texto o llamada de voz"], box_title, box_body, step=True)
 
-    data_title_y = y + SECTION_GAP - V_GAP
-    data_boxes_y = data_title_y + 42 + LANE_GAP
-    resp_y = data_boxes_y + 72 + SECTION_GAP
-    esc_title_y = resp_y + 78 + SECTION_GAP
-    esc_boxes_y = esc_title_y + 42 + LANE_GAP
-    bottom_y = esc_boxes_y + 72 + 56
+    lane_y = op_y + op_h + SECTION_GAP
+    row_y = lane_y + LANE_H + LANE_GAP
 
-    H = bottom_y + MARGIN
+    row_ys: list[int] = []
+    for (_, c_title, c_lines, _), (_, v_title, v_lines, _) in zip(chat_defs, voice_defs):
+        row_ys.append(row_y)
+        row_h = max(
+            box_height(inner_w, c_title, c_lines, box_title, box_body, step=True),
+            box_height(inner_w, v_title, v_lines, box_title, box_body, step=True),
+        )
+        row_y += row_h + V_GAP
+    lanes_bottom = row_y - V_GAP
+
+    data_lane_y = lanes_bottom + SECTION_GAP
+    data_row_y = data_lane_y + LANE_H + LANE_GAP
+    data_w = W - MARGIN * 2
+    data_gap = 24
+    col_w = (data_w - data_gap * 2) // 3
+    data_h = max(box_height(col_w, t, l, box_title, box_body) for t, l in data_defs)
+
+    resp_w = 700
+    resp_x = (W - resp_w) // 2
+    resp_lines = [
+        "Chat: mensaje de WhatsApp · Voz: guía hablada paso a paso",
+        "Si no se resuelve, envía el número de caso por WhatsApp",
+    ]
+    resp_y = data_row_y + data_h + SECTION_GAP
+    resp_h = box_height(resp_w, "Respuesta al operador", resp_lines, box_title, box_body, step=True)
+
+    esc_lane_y = resp_y + resp_h + SECTION_GAP
+    esc_row_y = esc_lane_y + LANE_H + LANE_GAP
+    esc_gap = 30
+    ew = (data_w - esc_gap * 3) // 4
+    esc_h = max(box_height(ew, t, l, box_title, box_body, step=True) for _, t, l in esc_defs)
+
+    pill_y = esc_row_y + esc_h + 54
+    H = pill_y + 40 + MARGIN
+
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
 
+    # --- encabezado ---
     draw.text((MARGIN, 24), "Infraestructura del piloto — flujo paso a paso", fill=COLORS["title"], font=title_font)
     draw.text(
         (MARGIN, 62),
@@ -326,93 +448,86 @@ def draw_diagram() -> Image.Image:
         fill=COLORS["subtitle"],
         font=subtitle_font,
     )
-    rounded_rect(draw, (W - 210, 24, W - MARGIN, 58), 8, COLORS["aws_bg"], COLORS["aws_border"], 1)
-    draw.text((W - 198, 33), "AWS us-east-1 · VPC privada", fill=COLORS["aws_text"], font=label_font)
+    badge_w = 212
+    rounded_rect(draw, (W - MARGIN - badge_w, 26, W - MARGIN, 58), 8, COLORS["aws_bg"], COLORS["aws_border"], 1)
+    draw.text((W - MARGIN - badge_w + 14, 35), "AWS us-east-1 · VPC privada", fill=COLORS["aws_text"], font=label_font)
 
-    # Step 1
+    # --- paso 1 ---
     op_box = draw_box(
         draw, op_x, op_y, op_w,
         "Operador en puesto de inscripción",
         ["WhatsApp: mensajes de texto o llamada de voz"],
         {"bg": WHITE, "border": "#94a3b8", "text": COLORS["title"]},
-        box_title, box_body,
+        box_title, box_body, step="1", badge_font=step_font,
     )
-    draw_step_badge(draw, (W // 2, (op_box[3] + lane_y) // 2), "1", step_font)
 
-    draw_lane_title(draw, chat_x, lane_y, lane_w, "Flujo chat (mensajes)", COLORS["chat_bg"], COLORS["chat_border"], COLORS["chat_text"], lane_font)
-    draw_lane_title(draw, voice_x, lane_y, lane_w, "Flujo voz (llamada WhatsApp)", COLORS["voice_bg"], COLORS["voice_border"], COLORS["voice_text"], lane_font)
-
-    arrow_split_down(draw, W // 2, op_box[3], chat_cx, voice_cx, chat_ys[0])
+    # --- carriles chat y voz ---
+    chat_bar = draw_lane_title(draw, chat_x, lane_y, lane_w, "Flujo chat (mensajes)", COLORS["chat_bg"], COLORS["chat_border"], COLORS["chat_text"], lane_font)
+    draw_lane_title(draw, voice_x, lane_y, lane_w, "Flujo voz (llamada de WhatsApp)", COLORS["voice_bg"], COLORS["voice_border"], COLORS["voice_text"], lane_font)
+    connect_split(draw, center, op_box[3], [chat_cx, voice_cx], lane_y)
 
     chat_boxes: list[tuple[int, int, int, int]] = []
     voice_boxes: list[tuple[int, int, int, int]] = []
-    for i, (title, lines, style) in enumerate(box_defs):
-        chat_boxes.append(draw_box(draw, chat_x + 20, chat_ys[i], inner_w, title, lines, style, box_title, box_body))
-    for i, (title, lines, style) in enumerate(voice_defs):
-        voice_boxes.append(draw_box(draw, voice_x + 20, voice_ys[i], inner_w, title, lines, style, box_title, box_body))
+    for i, ((c_step, c_title, c_lines, c_style), (v_step, v_title, v_lines, v_style)) in enumerate(zip(chat_defs, voice_defs)):
+        chat_boxes.append(draw_box(draw, chat_bx, row_ys[i], inner_w, c_title, c_lines, c_style, box_title, box_body, step=c_step, badge_font=step_font))
+        voice_boxes.append(draw_box(draw, voice_bx, row_ys[i], inner_w, v_title, v_lines, v_style, box_title, box_body, step=v_step, badge_font=step_font))
 
-    for i in range(2):
-        cy = gap_center_y(chat_boxes[i], chat_boxes[i + 1])
-        vy = gap_center_y(voice_boxes[i], voice_boxes[i + 1])
-        draw_step_badge(draw, (chat_cx, cy), str(i + 3), step_font)
-        draw_step_badge(draw, (voice_cx, vy), str(i + 3), step_font)
-        arrow_down(draw, chat_cx, chat_boxes[i][3], chat_boxes[i + 1][1])
-        arrow_down(draw, voice_cx, voice_boxes[i][3], voice_boxes[i + 1][1])
+    connect_down(draw, chat_cx, chat_bar[3], chat_boxes[0][1])
+    connect_down(draw, voice_cx, chat_bar[3], voice_boxes[0][1])
+    for i in range(len(row_ys) - 1):
+        connect_down(draw, chat_cx, chat_boxes[i][3], chat_boxes[i + 1][1])
+        connect_down(draw, voice_cx, voice_boxes[i][3], voice_boxes[i + 1][1])
 
-    s2y = gap_center_y((0, lane_y + 42, 0, chat_ys[0]), chat_boxes[0])
-    draw_step_badge(draw, (chat_cx, s2y), "2", step_font)
-    draw_step_badge(draw, (voice_cx, s2y), "2", step_font)
-
-    # Data layer
-    data_w = W - MARGIN * 2
-    draw_lane_title(draw, MARGIN, data_title_y, data_w, "Datos compartidos (chat y voz)", COLORS["data_bg"], COLORS["data_border"], COLORS["data_text"], lane_font)
-    col_w = (data_w - 40) // 3
-    d1 = draw_box(draw, MARGIN, data_boxes_y, col_w, "Redis", ["Sesión: caso, paso, intentos"], data_style, box_title, box_body)
-    d2 = draw_box(draw, MARGIN + col_w + 20, data_boxes_y, col_w, "Postgres", ["Casos, historial, flujos, métricas"], data_style, box_title, box_body)
-    d3 = draw_box(draw, MARGIN + (col_w + 20) * 2, data_boxes_y, col_w, "S3", ["Fotos y audios presintetizados"], data_style, box_title, box_body)
-
-    merge_mid = (chat_boxes[2][3] + data_title_y) // 2
-    arrow_merge_down(draw, chat_cx, voice_cx, chat_boxes[2][3], W // 2, data_title_y)
-    arrow_down(draw, W // 2, data_title_y + 34, data_boxes_y)
-
-    s5y = (data_title_y + 34 + data_boxes_y) // 2
-    draw_step_badge(draw, (W // 2, s5y), "5", step_font)
-    arrow_down(draw, W // 2, max(d1[3], d2[3], d3[3]), resp_y)
-
-    # Response
-    resp_w = 640
-    resp_x = (W - resp_w) // 2
-    resp = draw_box(
-        draw, resp_x, resp_y, resp_w,
-        "Respuesta al operador",
-        ["Chat: mensaje WhatsApp · Voz: guía hablada paso a paso", "Si no se resuelve: número de caso por WhatsApp"],
-        chat_style, box_title, box_body,
+    # --- paso 5: datos compartidos ---
+    data_bar = draw_lane_title(
+        draw, MARGIN, data_lane_y, data_w, "Datos compartidos por chat y voz",
+        COLORS["data_bg"], COLORS["data_border"], COLORS["data_text"], lane_font,
+        step="5", badge_font=step_font,
     )
-    s6y = gap_center_y(d2, resp)
-    draw_step_badge(draw, (W // 2, s6y), "6", step_font)
+    connect_merge(draw, [chat_cx, voice_cx], max(chat_boxes[-1][3], voice_boxes[-1][3]), center, data_lane_y)
 
-    # Escalation
-    esc_w = W - MARGIN * 2
-    draw_lane_title(draw, MARGIN, esc_title_y, esc_w, "Escalamiento a mesa de ayuda (sin transferencia en vivo)", COLORS["mesa_bg"], COLORS["mesa_border"], COLORS["mesa_text"], lane_font)
-    ew = (esc_w - 60) // 4
-    gap_x = 20
-    e1 = draw_box(draw, MARGIN, esc_boxes_y, ew, "Caso en Postgres", ["Prioridad y detalle del fallo"], mesa_style, box_title, box_body)
-    e2 = draw_box(draw, MARGIN + ew + gap_x, esc_boxes_y, ew, "SES + consola", ["Correo y bandeja CloudFront + Cognito"], mesa_style, box_title, box_body)
-    e3 = draw_box(draw, MARGIN + (ew + gap_x) * 2, esc_boxes_y, ew, "Mesa toma el caso", ["Evita doble llamada al operador"], mesa_style, box_title, box_body)
-    e4 = draw_box(draw, MARGIN + (ew + gap_x) * 3, esc_boxes_y, ew, "Devuelve la llamada", ["Desde celular de la mesa por WhatsApp"], mesa_style, box_title, box_body)
+    data_boxes = []
+    data_cxs = []
+    for i, (t, l) in enumerate(data_defs):
+        dx = MARGIN + (col_w + data_gap) * i
+        data_boxes.append(draw_box(draw, dx, data_row_y, col_w, t, l, data_style, box_title, box_body))
+        data_cxs.append(dx + col_w // 2)
+    connect_split(draw, center, data_bar[3], data_cxs, data_row_y)
 
-    s7y = (resp[3] + esc_boxes_y) // 2
-    draw_step_badge(draw, (W // 2, s7y), "7", step_font)
-    arrow_down(draw, W // 2, resp[3], esc_boxes_y)
+    # --- paso 6: respuesta ---
+    resp = draw_box(
+        draw, resp_x, resp_y, resp_w, "Respuesta al operador", resp_lines,
+        chat_style, box_title, box_body, step="6", badge_font=step_font,
+    )
+    connect_merge(draw, data_cxs, data_row_y + data_h, center, resp_y)
 
-    flow_y = esc_boxes_y + (e1[3] - esc_boxes_y) // 2
-    for a, b, num in [(e1, e2, "8"), (e2, e3, "9"), (e3, e4, "10")]:
-        cx = (a[2] + b[0]) // 2
-        draw_step_badge(draw, (cx, flow_y), num, step_font)
-        arrow_right(draw, a[2], flow_y, b[0])
+    # --- pasos 7 a 10: escalamiento ---
+    esc_bar = draw_lane_title(
+        draw, MARGIN, esc_lane_y, data_w, "Escalamiento a la mesa de ayuda (sin transferencia en vivo)",
+        COLORS["mesa_bg"], COLORS["mesa_border"], COLORS["mesa_text"], lane_font,
+    )
+    connect_down(draw, center, resp[3], esc_lane_y)
 
-    return_y = e4[3] + 48
-    arrow_left_dashed(draw, e4[0] + ew // 2, return_y, op_x + op_w, "llamada de vuelta", label_font)
+    esc_boxes = []
+    for i, (step_num, t, l) in enumerate(esc_defs):
+        ex = MARGIN + (ew + esc_gap) * i
+        esc_boxes.append(
+            draw_box(draw, ex, esc_row_y, ew, t, l, mesa_style, box_title, box_body, step=step_num, badge_font=step_font)
+        )
+    connect_split(draw, center, esc_bar[3], [esc_boxes[0][0] + ew // 2], esc_row_y)
+
+    flow_y = esc_row_y + esc_h // 2
+    for a, b in zip(esc_boxes, esc_boxes[1:]):
+        connect_right(draw, flow_y, a[2], b[0])
+
+    # --- cierre del ciclo ---
+    pill_w = 360
+    pill_x = min(esc_boxes[-1][0] + ew // 2 - pill_w // 2, W - MARGIN - pill_w)
+    pill = draw_pill(
+        draw, pill_x, pill_y, pill_w, "Inscripción retomada en el puesto",
+        COLORS["mesa_bg"], COLORS["mesa_border"], COLORS["mesa_text"], lane_font,
+    )
+    connect_down_dashed(draw, pill_x + pill_w // 2, esc_boxes[-1][3], pill_y, COLORS["mesa_border"])
 
     return img
 
@@ -426,6 +541,7 @@ def draw_section_table(
     *,
     row_height: int = 54,
     value_cols: int = 3,
+    align_last_right: bool = False,
 ) -> Image.Image:
     table_head = font(16, bold=True)
     table_body = font(13)
@@ -455,9 +571,13 @@ def draw_section_table(
     rounded_rect(draw, (x0, y0, x0 + table_w, y0 + table_h), 10, WHITE, COLORS["table_border"])
 
     cx = x0 + pad
-    for header, cw in zip(headers, cols):
+    for ci, (header, cw) in enumerate(zip(headers, cols)):
         rounded_rect(draw, (cx, y0, cx + cw, y0 + header_h), 0, COLORS["table_header"], COLORS["table_header"])
-        draw.text((cx + 8, y0 + 12), header, fill=WHITE, font=table_head)
+        if ci == len(cols) - 1 and align_last_right:
+            hx = cx + cw - 10 - text_width(header, table_head)
+        else:
+            hx = cx + 8
+        draw.text((hx, y0 + 12), header, fill=WHITE, font=table_head)
         cx += cw
 
     for r, row in enumerate(rows):
@@ -480,12 +600,16 @@ def draw_section_table(
 
         cx = x0 + pad
         fonts_use = [fnt, table_small if kind == "row" else fnt, fnt]
-        for cw, text, fnt_use in zip(cols, values, fonts_use):
-            lines = wrap_text(text, fnt_use, cw - 16)
-            ty = ry + 8
-            for line in lines[:3]:
-                anchor_x = cx + cw - 8 if cw == cols[-1] and text.startswith(("≈", "0")) else cx + 8
-                draw.text((anchor_x, ty), line, fill=COLORS["title"], font=fnt_use)
+        last_col = len(cols) - 1
+        for ci, (cw, text, fnt_use) in enumerate(zip(cols, values, fonts_use)):
+            lines = wrap_text(text, fnt_use, cw - 16)[:3]
+            ty = ry + (row_height - len(lines) * 16) // 2
+            for line in lines:
+                if ci == last_col and align_last_right:
+                    tx = cx + cw - 10 - text_width(line, fnt_use)
+                else:
+                    tx = cx + 8
+                draw.text((tx, ty), line, fill=COLORS["title"], font=fnt_use)
                 ty += 16
             cx += cw
 
@@ -507,9 +631,10 @@ def draw_costos_table() -> Image.Image:
         "Costos mensuales estimados del piloto",
         COSTOS_SUBTITLE,
         ["Concepto", "Detalle", "US$ / mes"],
-        [240, 520, 110],
+        [260, 520, 110],
         COSTOS,
         row_height=40,
+        align_last_right=True,
     )
 
 
