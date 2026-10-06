@@ -223,6 +223,8 @@ Si más adelante algo obliga a sacar la nube, el mismo agente corre en LiveKit e
 
 Antes de campo: un set de 30–50 llamadas grabadas con ruido de fila, con las respuestas esperadas, para correr cada cambio de proveedor o de flujo contra el mismo set.
 
+Calendario completo (PoC, chat, voz, consola y campo) en [tiempos.md](tiempos.md).
+
 ## Prueba de concepto de dos semanas
 
 Semana 1:
