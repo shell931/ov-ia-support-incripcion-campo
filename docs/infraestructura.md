@@ -58,7 +58,9 @@ flowchart LR
   HUM -.->|devuelve la llamada| OPW
 ```
 
-Versión en imagen: [diagramas/infraestructura.png](diagramas/infraestructura.png).
+Versión en imagen (diagrama + tabla Piezas): [diagramas/infraestructura.png](diagramas/infraestructura.png).
+
+Solo el diagrama, sin la tabla: [diagramas/infraestructura-diagrama.png](diagramas/infraestructura-diagrama.png).
 
 En el dibujo no aparecen Secrets Manager, CloudWatch ni el NAT Gateway, que usan todos los servicios de la VPC: los secretos de cada proveedor, los logs y alarmas, y la salida hacia Meta, LiveKit y los proveedores de IA.
 
