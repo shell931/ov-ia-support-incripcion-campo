@@ -136,6 +136,22 @@ flowchart LR
 
 Versión en imagen: [diagramas/arquitectura-voz-tecnologias.png](diagramas/arquitectura-voz-tecnologias.png).
 
+| Genérico | Tecnología | Qué hace |
+| --- | --- | --- |
+| Meta SIP | Meta WhatsApp Calling API (SIP) | Recibe la llamada que el operador inicia desde WhatsApp y la entrega por SIP al agente. Sin costo de minutos. |
+| DID Colombia | Trunk SIP — Twilio o Telnyx | Número telefónico de Colombia para quien llame sin datos o sin WhatsApp. |
+| Servidor SIP | LiveKit Cloud (SIP, salas, BVC/Krisp) | Termina la llamada, mezcla el audio, cancela ruido de fondo y conecta con el agente de voz. |
+| Agente de voz | voice-agent — LiveKit Agents en ECS Fargate | Orquesta cada llamada: escucha, interpreta, habla, lee el teclado y crea el caso. |
+| STT español | Deepgram Nova-3 | Convierte en texto, en vivo, lo que dice el operador. |
+| LLM | Claude Haiku o GPT-4o mini | Clasifica la intención inicial y traduce la respuesta libre a sí, no, no entendí o quiero una persona. |
+| TTS español | Cartesia Sonic | Genera la voz del agente. Los pasos fijos van presintetizados en S3; solo las frases dinámicas se crean en la llamada. |
+| Motor de flujos | YAML en el repo | Define el árbol de cada caso: qué paso sigue, cuántos intentos y cuándo escalar. Editable sin tocar código. |
+| Redis | ElastiCache Redis | Guarda la sesión activa: teléfono, caso, paso actual e intentos. Permite retomar si se corta la llamada. |
+| Postgres | RDS Postgres | Persiste casos, historial enmascarado, flujos y métricas. |
+| Caso priorizado | API del gateway | Crea el ticket en la cola de la mesa con puesto, síntoma, pasos intentados y resumen. |
+| WhatsApp número de caso | Meta WhatsApp Cloud API | Manda al operador el número de caso por chat al cerrar o escalar la llamada. |
+| Mesa de ayuda | Consola — CloudFront + Cognito | Bandeja web donde la mesa ve la cola, toma el caso y llama de vuelta al operador. |
+
 Los audios fijos de cada paso salen de **S3** (presintetizados con Cartesia); las frases dinámicas se generan en vivo. Detalle de despliegue en [infraestructura.md](infraestructura.md).
 
 ### Quién decide qué se dice
