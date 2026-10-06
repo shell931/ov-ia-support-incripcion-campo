@@ -4,63 +4,23 @@ Qué hay que tener encendido para el asistente de WhatsApp, el agente de voz y l
 
 ## Diagrama
 
-```mermaid
-flowchart LR
-  subgraph CAMPO["Puesto de inscripción"]
-    OPW["Operador<br/>WhatsApp: chat y llamada"]
-  end
+Flujo paso a paso (chat y voz en paralelo, datos compartidos, escalamiento sin transferencia en vivo):
 
-  subgraph CANAL["Canal WhatsApp"]
-    META["Meta WhatsApp Cloud API<br/>mensajes y llamadas por SIP"]
-    LK["LiveKit Cloud<br/>SIP, salas, ruido"]
-  end
-
-  subgraph IA["Proveedores de IA"]
-    STT["Deepgram<br/>voz a texto"]
-    LLM["LLM por API<br/>intención"]
-    TTS["Cartesia o ElevenLabs<br/>texto a voz"]
-  end
-
-  subgraph AWS["AWS us-east-1"]
-    ALB["WAF + ALB HTTPS"]
-    subgraph VPC["VPC, subredes privadas"]
-      GW["gateway<br/>webhook y API de casos"]
-      SQS[["SQS"]]
-      WRK["worker<br/>conversación WhatsApp"]
-      VA["voice-agent<br/>LiveKit Agents"]
-      RED[("Redis<br/>sesión")]
-      PG[("Postgres<br/>casos y flujos")]
-    end
-    S3[("S3<br/>fotos y audios de pasos")]
-    CF["CloudFront + Cognito<br/>consola de casos"]
-    SES["SES<br/>alertas"]
-  end
-
-  subgraph MESA["Mesa de ayuda / Censo"]
-    HUM["Persona de la mesa"]
-  end
-
-  OPW --> META
-  META -->|webhook| ALB --> GW --> SQS --> WRK
-  WRK -->|respuestas| META
-  META -->|llamada SIP| LK
-  LK <-->|audio| VA
-  VA --> IA
-  WRK --> LLM
-  WRK --> RED
-  VA --> RED
-  WRK --> PG
-  VA --> PG
-  VA --> S3
-  GW --> PG
-  HUM --> CF -->|API| ALB
-  GW -->|caso alto| SES --> HUM
-  HUM -.->|devuelve la llamada| OPW
-```
+| Paso | Chat (mensajes) | Voz (llamada WhatsApp) |
+| --- | --- | --- |
+| **1** | Operador escribe por WhatsApp | Operador llama por WhatsApp |
+| **2** | Meta Cloud API recibe el mensaje | Meta envía SIP a LiveKit Cloud |
+| **3** | WAF + ALB → gateway → SQS | voice-agent (LiveKit Agents) atiende la llamada |
+| **4** | worker + motor de flujos + LLM | Deepgram → LLM → Cartesia (+ audio de pasos en S3) |
+| **5** | Redis, Postgres y S3 (compartidos) | Redis, Postgres y S3 (compartidos) |
+| **6** | Respuesta por WhatsApp al operador | Guía hablada paso a paso |
+| **7–10** | Caso en Postgres → SES + consola → mesa toma el caso → devuelve la llamada por WhatsApp | Igual |
 
 Versión en imagen (diagrama + tabla Piezas): [diagramas/infraestructura.png](diagramas/infraestructura.png).
 
 Solo el diagrama, sin la tabla: [diagramas/infraestructura-diagrama.png](diagramas/infraestructura-diagrama.png).
+
+Para regenerar la imagen tras editar la tabla Piezas: `python3 docs/diagramas/generate_infraestructura.py`.
 
 En el dibujo no aparecen Secrets Manager, CloudWatch ni el NAT Gateway, que usan todos los servicios de la VPC: los secretos de cada proveedor, los logs y alarmas, y la salida hacia Meta, LiveKit y los proveedores de IA.
 
