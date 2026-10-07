@@ -158,6 +158,13 @@ def arrow_right(draw, x1, y, x2):
     draw.polygon([(x2, y), (x2 - 10, y - 6), (x2 - 10, y + 6)], fill=COLORS["arrow"])
 
 
+def arrow_left(draw, x1, y, x2):
+    if x1 - x2 < 14:
+        return
+    draw.line((x1, y, x2 + 10, y), fill=COLORS["arrow"], width=2)
+    draw.polygon([(x2, y), (x2 + 10, y - 6), (x2 + 10, y + 6)], fill=COLORS["arrow"])
+
+
 def draw_diagram():
     title_font = font(26, bold=True)
     subtitle_font = font(14)
@@ -173,107 +180,159 @@ def draw_diagram():
     app = {"bg": COLORS["app_bg"], "border": COLORS["app_border"], "text": COLORS["app_text"]}
     mesa = {"bg": COLORS["onp_bg"], "border": COLORS["onp_border"], "text": COLORS["onp_text"]}
 
-    H = 1180
+    H = 1280
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
 
     draw.text((MARGIN, 22), "Propuesta 2 — voz e IA on-premise", fill=COLORS["title"], font=title_font)
     draw.text(
         (MARGIN, 58),
-        "Mismo WhatsApp y mismo árbol YAML  ·  Meta en la nube  ·  STT, TTS, LLM y datos en el datacenter",
+        "LiveKit solo transporta audio  ·  Whisper pasa a texto  ·  el LLM clasifica  ·  el YAML elige el paso",
         fill=COLORS["subtitle"],
         font=subtitle_font,
     )
 
-    op_w, op_h_box = 560, 0
+    op_w = 560
     op_x = (W - op_w) // 2
     op = draw_box(
-        draw, op_x, 96, op_w,
-        "Operador en el puesto (campo)",
-        ["WhatsApp en el celular: mensaje o llamada de voz"],
+        draw, op_x, 92, op_w,
+        "1. Operador en el puesto (campo)",
+        ["Llama o escribe por WhatsApp en el celular"],
         {"bg": WHITE, "border": "#94a3b8", "text": COLORS["title"]},
         box_title, box_body,
     )
 
-    region_y = op[3] + 48
-    nube_x, nube_w = MARGIN, 400
-    gap = 28
+    region_y = op[3] + 44
+    nube_x, nube_w = MARGIN, 380
+    gap = 24
     onp_x = nube_x + nube_w + gap
     onp_w = W - MARGIN - onp_x
-    region_h = 860
+    region_h = 1088
     draw_region(draw, nube_x, region_y, nube_w, region_h, "NUBE  —  solo el canal", COLORS["nube_bg"], COLORS["nube_border"], COLORS["nube_text"], lane_font)
-    draw_region(draw, onp_x, region_y, onp_w, region_h, "ON-PREMISE  —  datacenter del cliente", COLORS["onp_bg"], COLORS["onp_border"], COLORS["onp_text"], lane_font)
+    draw_region(draw, onp_x, region_y, onp_w, region_h, "ON-PREMISE  —  datacenter  ·  aquí se convierte a texto y se decide", COLORS["onp_bg"], COLORS["onp_border"], COLORS["onp_text"], lane_font)
 
-    inner = 18
+    inner = 16
     meta = draw_box(
-        draw, nube_x + inner, region_y + 52, nube_w - inner * 2,
-        "Meta WhatsApp Cloud API",
+        draw, nube_x + inner, region_y + 50, nube_w - inner * 2,
+        "2. Meta WhatsApp Cloud API",
         ["Chat: webhook HTTPS", "Voz: llamada SIP", "No interpreta ni guarda el caso"],
         nube, box_title, box_body,
     )
-    # Operador → Meta (el canal siempre pasa por la nube)
-    bus_y = op[3] + 18
+    bus_y = op[3] + 16
     meta_cx = nube_x + nube_w // 2
     draw.line((W // 2, op[3], W // 2, bus_y), fill=COLORS["arrow"], width=2)
     draw.line((W // 2, bus_y, meta_cx, bus_y), fill=COLORS["arrow"], width=2)
     arrow_down(draw, meta_cx, bus_y, meta[1])
-    draw.text((nube_x + inner, meta[3] + 16), "Por qué nube", fill=COLORS["nube_text"], font=box_title)
+
+    draw.text((nube_x + inner, meta[3] + 14), "Por qué nube", fill=COLORS["nube_text"], font=box_title)
     why_nube = wrap_text(
-        "WhatsApp no se instala en el datacenter. Meta solo entrega el mensaje o el audio. El procedimiento y los datos del caso no viven aquí.",
+        "WhatsApp no se instala en el datacenter. Meta solo entrega el mensaje o el audio. El procedimiento vive on-premise.",
         box_body, nube_w - inner * 2,
     )
-    ty = meta[3] + 38
+    ty = meta[3] + 36
     for line in why_nube:
         draw.text((nube_x + inner, ty), line, fill=COLORS["nube_text"], font=box_body)
         ty += 16
 
-    dmz = draw_box(
-        draw, nube_x + inner, ty + 20, nube_w - inner * 2,
-        "Llega al datacenter por",
-        ["HTTPS (chat) y SIP (voz)", "hacia el reverse proxy / DMZ"],
+    draw_box(
+        draw, nube_x + inner, ty + 16, nube_w - inner * 2,
+        "LiveKit no está aquí",
+        ["En esta propuesta LiveKit, Whisper,", "el LLM y Piper corren en el datacenter.", "La nube de LiveKit no se usa."],
         nube, box_title, box_body,
     )
 
     ox = onp_x + inner
     ow = onp_w - inner * 2
-    y = region_y + 52
-    proxy = draw_box(draw, ox, y, ow, "Reverse proxy / firewall (DMZ)", ["Punto de entrada desde Meta. El resto de servicios no se publican."], onp, box_title, box_body)
+    cx = ox + ow // 2
+    y = region_y + 50
+
+    proxy = draw_box(draw, ox, y, ow, "3. Reverse proxy / firewall (DMZ)", ["HTTPS (chat) y SIP (voz) desde Meta. El resto no se publica."], onp, box_title, box_body)
     arrow_right(draw, meta[2], (meta[1] + meta[3]) // 2, ox)
-    arrow_down(draw, ox + ow // 2, proxy[3], proxy[3] + 28)
+    arrow_down(draw, cx, proxy[3], proxy[3] + 26)
 
-    y = proxy[3] + 28
-    col_w = (ow - 16) // 2
-    chat = draw_box(draw, ox, y, col_w, "Chat", ["gateway → cola → worker", "Motor YAML + LLM CPU"], app, box_title, box_body)
-    voice = draw_box(draw, ox + col_w + 16, y, col_w, "Voz", ["LiveKit OSS → voice-agent", "Whisper GPU → YAML → Piper CPU"], gpu, box_title, box_body)
-    row_h = max(chat[3], voice[3])
-    arrow_down(draw, ox + ow // 2, row_h, row_h + 28)
-
-    y = row_h + 28
-    motor = draw_box(
-        draw, ox, y, ow,
-        "Motor de flujos (YAML) — on-premise",
-        ["Mismo árbol que chat y voz: logueo, tableta sin internet, tableta dañada.", "El LLM solo marca sí / no / persona. El id del paso elige el audio en MinIO o el texto de WhatsApp."],
+    y = proxy[3] + 26
+    col_w = (ow - 14) // 2
+    chat = draw_box(
+        draw, ox, y, col_w,
+        "4a. Chat — gateway → cola → worker",
+        ["El mensaje ya es texto.", "Salta Whisper y Piper.", "Entra al YAML igual que la voz."],
         app, box_title, box_body,
     )
-    arrow_down(draw, ox + ow // 2, motor[3], motor[3] + 28)
+    lk = draw_box(
+        draw, ox + col_w + 14, y, col_w,
+        "4b. LiveKit OSS — solo audio",
+        ["Termina el SIP, abre la sala,", "mezcla y cancela ruido.", "No convierte a texto ni clasifica."],
+        gpu, box_title, box_body,
+    )
+    row1 = max(chat[3], lk[3])
+    va_x = ox + col_w + 14
+    va_cx = va_x + col_w // 2
+    arrow_down(draw, va_cx, lk[3], row1 + 26)
 
-    y = motor[3] + 28
-    dw = (ow - 32) // 3
-    d1 = draw_box(draw, ox, y, dw, "Redis", ["Sesión: paso e intentos"], data, box_title, box_body)
-    d2 = draw_box(draw, ox + dw + 16, y, dw, "Postgres", ["Casos e historial"], data, box_title, box_body)
-    d3 = draw_box(draw, ox + (dw + 16) * 2, y, dw, "MinIO", ["Audios de pasos y fotos"], data, box_title, box_body)
-    data_bottom = max(d1[3], d2[3], d3[3])
-    arrow_down(draw, ox + ow // 2, data_bottom, data_bottom + 28)
+    y = row1 + 26
+    va = draw_box(
+        draw, va_x, y, col_w,
+        "5. voice-agent (Python)",
+        ["Proceso vuestro en la sala.", "Pide STT, LLM, YAML y TTS.", "No es LiveKit Cloud."],
+        gpu, box_title, box_body,
+    )
+    arrow_down(draw, va_cx, va[3], va[3] + 26)
 
-    y = data_bottom + 28
-    cons = draw_box(
-        draw, ox, y, ow,
-        "Consola de la mesa + correo local",
-        ["Cola de casos, toma, transcripción enmascarada. Sin transferencia en vivo: la mesa llama de vuelta por WhatsApp."],
-        mesa, box_title, box_body,
+    y = va[3] + 26
+    stt = draw_box(
+        draw, va_x, y, col_w,
+        "6. Faster-Whisper (GPU)",
+        ["Audio → texto, en streaming.", "El habla no se guarda.", "Cédula enmascarada en el texto."],
+        gpu, box_title, box_body,
+    )
+    arrow_down(draw, va_cx, stt[3], stt[3] + 26)
+
+    y = stt[3] + 26
+    llm = draw_box(
+        draw, va_x, y, col_w,
+        "7. LLM chico (CPU)",
+        ["Lee el texto y etiqueta:", "sí / no / no_entendí / persona.", "No escribe el procedimiento."],
+        app, box_title, box_body,
     )
 
-    draw.text((ox, cons[3] + 14), "GPU solo en Whisper. Clasificador y Piper en CPU. Meta sigue viendo el audio de WhatsApp; el caso no sale.", fill=COLORS["subtitle"], font=label_font)
+    yaml_y = min(chat[3] + 26, llm[3] + 26)
+    # YAML full width after LLM so chat can merge
+    yaml_top = llm[3] + 26
+    arrow_down(draw, va_cx, llm[3], yaml_top)
+    arrow_down(draw, ox + col_w // 2, chat[3], yaml_top)
+
+    yaml = draw_box(
+        draw, ox, yaml_top, ow,
+        "8. Motor YAML + Redis",
+        ["Con el paso actual, los intentos y la etiqueta elige el siguiente id.", "Mismo árbol para chat y voz: logueo, tableta sin internet, tableta dañada."],
+        app, box_title, box_body,
+    )
+    arrow_down(draw, cx, yaml[3], yaml[3] + 26)
+
+    y = yaml[3] + 26
+    dw = (ow - 14) // 2
+    minio = draw_box(draw, ox, y, dw, "9a. MinIO — audio fijo del paso", ["Id del YAML = archivo ya grabado.", "Piper lo sintetizó una vez."], data, box_title, box_body)
+    piper = draw_box(draw, ox + dw + 14, y, dw, "9b. Piper CPU — frase suelta", ["Número de caso, nombre de puesto.", "Solo lo que no está en MinIO."], data, box_title, box_body)
+    row9 = max(minio[3], piper[3])
+
+    # audio returns to LiveKit / Meta / operator
+    back_y = row9 + 22
+    draw.text((ox, back_y), "Audio de vuelta: Piper/MinIO → voice-agent → LiveKit → Meta → operador oye el paso", fill=COLORS["subtitle"], font=label_font)
+
+    y = back_y + 28
+    pg = draw_box(
+        draw, ox, y, dw,
+        "10. Si escala → Postgres",
+        ["Caso, pasos intentados,", "transcripción enmascarada."],
+        data, box_title, box_body,
+    )
+    cons = draw_box(
+        draw, ox + dw + 14, y, dw,
+        "Consola mesa + correo",
+        ["Sin transferencia en vivo.", "La mesa llama de vuelta por WhatsApp."],
+        mesa, box_title, box_body,
+    )
+    arrow_down(draw, cx, row9, pg[1])
 
     return img
 
