@@ -13,6 +13,7 @@ Asistente de nivel 1 para operadores de puestos de inscripción. El canal de ayu
 | [docs/infraestructura.md](docs/infraestructura.md) | Diagrama de infraestructura, consola de casos y dimensionamiento. |
 | [docs/costos.md](docs/costos.md) | Costo mensual estimado: 15 operadores y escenario de 1.400. |
 | [docs/tiempos.md](docs/tiempos.md) | Calendario de implementación para una persona (PoC a piloto en campo) e historias de usuario. |
+| [propuesta-2/](propuesta-2/README.md) | Propuesta 2: STT/TTS/LLM y datos on-premise; Meta sigue en la nube. |
 
 ## Alcance de arranque
 
