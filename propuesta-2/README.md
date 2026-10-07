@@ -16,6 +16,57 @@ Dos recintos, no dos productos.
 
 Sigue siendo un toma y dame: texto → sí/no/persona → id de paso → audio o mensaje. El LLM no redacta.
 
+## Flujo de una llamada (on-premise)
+
+Todo esto, salvo el primer salto a Meta, corre en el datacenter. LiveKit **no** convierte voz a texto ni llama al LLM: solo transporta audio. El `voice-agent` (Python) orquesta el resto.
+
+```text
+Operador habla
+    → Meta (nube): entrega la llamada por SIP
+    → LiveKit (on-prem): sala, mezcla, ruido
+    → voice-agent: toma el audio de la sala
+    → Faster-Whisper (GPU): audio → texto
+    → LLM chico (CPU): el texto se vuelve sí / no / no_entendí / persona
+    → Motor YAML: con Redis (paso actual + intentos) elige el siguiente id
+    → MinIO o Piper: reproduce el audio de ese id (o sintetiza número de caso)
+    → LiveKit → Meta → el operador oye el siguiente paso
+```
+
+Paso a paso:
+
+1. **El operador llama** por WhatsApp al número de soporte.
+2. **Meta** recibe la llamada y la saca de WhatsApp por **SIP** hacia el datacenter. No interpreta nada.
+3. **LiveKit** (software open source en un Linux vuestro) termina el SIP, abre una **sala**, cancela ruido y avisa a un `voice-agent` libre. Sigue siendo audio, no texto.
+4. El **`voice-agent`** se une a esa sala. Es un proceso Python vuestro, no un producto de LiveKit Cloud.
+5. **Faster-Whisper (GPU)** convierte en vivo lo que dice el operador **a texto**. El habla no se guarda; queda la transcripción (enmascarada si hay cédula).
+6. El **LLM chico (CPU)** recibe solo ese texto. No escribe el procedimiento. Solo etiqueta: `sí`, `no`, `no_entendí` o `persona`.
+7. El **motor YAML** mira Redis (flujo, paso, intentos) y la etiqueta, y decide el **siguiente id** (repetir, avanzar o escalar).
+8. **Respuesta:**
+   - Paso fijo → audio ya grabado en **MinIO** (Piper lo generó una vez).
+   - Frase suelta (número de caso) → **Piper** la sintetiza ahora, en CPU.
+9. Ese audio vuelve **voice-agent → LiveKit → Meta → WhatsApp**. El operador oye la pregunta o la instrucción.
+10. Si escala: se crea el caso en **Postgres**, se manda el número por **chat WhatsApp**, y la mesa llama después. No hay transferencia en vivo.
+
+El chat es el mismo motor desde el paso 6: el texto ya llega escrito, sin Whisper ni Piper.
+
+```mermaid
+flowchart LR
+  OP[Operador] -->|llamada WhatsApp| META[Meta nube]
+  META -->|SIP| LK[LiveKit on-prem]
+  LK -->|audio| VA[voice-agent]
+  VA --> STT[Whisper GPU]
+  STT -->|texto| LLM[LLM CPU]
+  LLM -->|sí no persona| YAML[Motor YAML]
+  YAML --> REDIS[(Redis sesión)]
+  YAML -->|id de paso| AUD[MinIO o Piper]
+  AUD -->|audio| VA
+  VA -->|audio| LK
+  LK --> META
+  META --> OP
+  YAML -->|si escala| PG[(Postgres)]
+  PG --> MESA[Consola mesa]
+```
+
 ## Dónde va cada pieza
 
 | Pieza | Dónde | Qué es | Por qué así |
