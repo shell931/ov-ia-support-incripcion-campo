@@ -6,6 +6,8 @@ Cambia el **cómo se despliega**: menos piezas de infra que AWS+LiveKit+Deepgram
 
 Comparación: [diferencias-propuestas.md](../diferencias-propuestas.md). Requisitos comunes: [docs/](../docs/README.md).
 
+Imagen (diagrama + piezas + costos): [arquitectura.png](arquitectura.png). Solo el diagrama: [arquitectura-diagrama.png](arquitectura-diagrama.png). Regenerar: `python3 propuesta-3/generate_arquitectura.py`.
+
 ## Stack en una línea
 
 ```text
@@ -88,6 +90,8 @@ Si Meta **no** permite apuntar el SIP de WhatsApp Calling directamente a OpenAI,
 
 ## Dónde va cada pieza
 
+Tabla completa (qué es, dónde, por qué) en [arquitectura.png](arquitectura.png).
+
 | Pieza | Dónde | Notas |
 | --- | --- | --- |
 | Webhook + motor YAML | **Railway** | Un repo, 1–2 servicios (API + worker opcional). |
@@ -104,7 +108,7 @@ Igual criterio que propuesta 1: consola web ligera (Next o Vite) hosteada en Rai
 
 ## Costos mensuales (orden de magnitud)
 
-Mismos supuestos que [propuesta-1/costos.md](../propuesta-1/costos.md): 22 días, 2 incidencias/día, 50 % chat / 50 % voz, 6 min/llamada. Sin desarrollo ni impuestos. Precios **orientativos** (Railway/Supabase/OpenAI cambian seguido).
+Desglose en imagen: [arquitectura.png](arquitectura.png) (15 y 1.400 operadores). Mismos supuestos que [propuesta-1/costos.md](../propuesta-1/costos.md): 22 días, 2 incidencias/día, 50 % chat / 50 % voz, 6 min/llamada. Sin desarrollo ni impuestos. Precios **orientativos** (Railway/Supabase/OpenAI cambian seguido).
 
 ### 15 operadores
 
