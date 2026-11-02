@@ -76,7 +76,7 @@ Prioridad del caso:
 | No llegó el correo de credenciales | Media, a Dirección de Censo |
 | El operador pidió hablar con una persona sin falla bloqueante | Normal |
 
-La mesa no tiene herramienta de casos. Se propone una consola propia sobre la misma base del agente; detalle y alternativas en [infraestructura.md](infraestructura.md#consola-de-casos).
+La mesa no tiene herramienta de casos. Se propone una consola propia sobre la misma base del agente; detalle y alternativas en [infraestructura.md](../propuesta-1/infraestructura.md#consola-de-casos) (propuesta 1).
 
 ## Arquitectura recomendada
 
@@ -121,7 +121,7 @@ flowchart LR
   MESA -->|Devuelve la llamada| OP
 ```
 
-Versión en imagen: [diagramas/arquitectura-voz-tecnologias.png](diagramas/arquitectura-voz-tecnologias.png).
+Versión en imagen: [arquitectura-voz-tecnologias.png](../propuesta-1/diagramas/arquitectura-voz-tecnologias.png) (propuesta 1).
 
 | Genérico | Tecnología | Qué hace |
 | --- | --- | --- |
@@ -138,7 +138,7 @@ Versión en imagen: [diagramas/arquitectura-voz-tecnologias.png](diagramas/arqui
 | WhatsApp número de caso | Meta WhatsApp Cloud API | Manda al operador el número de caso por chat al cerrar o escalar la llamada. |
 | Mesa de ayuda | Consola — CloudFront + Cognito | Bandeja web donde la mesa ve la cola, toma el caso y llama de vuelta al operador. |
 
-Los audios fijos de cada paso salen de **S3** (presintetizados con Cartesia); las frases dinámicas se generan en vivo. Detalle de despliegue en [infraestructura.md](infraestructura.md).
+Los audios fijos de cada paso salen de **S3** (presintetizados con Cartesia) en la propuesta 1; en la propuesta 2, MinIO y Piper. Detalle de despliegue: [propuesta 1](../propuesta-1/infraestructura.md), [propuesta 2](../propuesta-2/README.md), [diferencias](../diferencias-propuestas.md).
 
 ### Quién decide qué se dice
 
@@ -209,7 +209,7 @@ Si más adelante algo obliga a sacar la nube, el mismo agente corre en LiveKit e
 | Caso escalado que la mesa no ve a tiempo | Prioridad por bloqueo del puesto, aviso a la mesa al crearse un caso alto, alerta si pasa el tiempo acordado sin contacto. |
 | El operador vuelve a llamar mientras espera | El agente reconoce el caso abierto por el número y le dice el estado. |
 | Ley 1581 | Sin biometría, cédula por teclado y enmascarada, proveedores sin retención, aviso al inicio de la llamada. |
-| Picos de jornada sin cifras | Autoescalado del agente y mensaje de desborde que deja el caso. Estimación en [infraestructura.md](infraestructura.md#dimensionamiento-sin-datos-de-volumen). |
+| Picos de jornada sin cifras | Autoescalado del agente y mensaje de desborde que deja el caso. Estimación en [infraestructura.md](../propuesta-1/infraestructura.md#dimensionamiento-sin-datos-de-volumen). |
 
 ## Cómo medir
 
@@ -223,7 +223,7 @@ Si más adelante algo obliga a sacar la nube, el mismo agente corre en LiveKit e
 
 Antes de campo: un set de 30–50 llamadas grabadas con ruido de fila, con las respuestas esperadas, para correr cada cambio de proveedor o de flujo contra el mismo set.
 
-Calendario completo (PoC, chat, voz, consola y campo) en [tiempos.md](tiempos.md).
+Calendario completo (PoC, chat, voz, consola y campo) en [tiempos.md](../propuesta-1/tiempos.md) (propuesta 1).
 
 ## Prueba de concepto de dos semanas
 

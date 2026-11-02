@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera docs/diagramas/infraestructura.png (diagrama + Piezas + costos)."""
+"""Genera propuesta-1/diagramas/infraestructura.png (diagrama + Piezas + costos)."""
 
 from __future__ import annotations
 

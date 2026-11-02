@@ -425,7 +425,7 @@ def compose():
     )
     c1400 = draw_section_table(
         "Costos mensuales — 1.400 operadores",
-        "Mismos supuestos de uso que docs/costos.md · vs ≈ 4.600 US$ en la propuesta 1 (nube)",
+        "Mismos supuestos que propuesta-1/costos.md · vs ≈ 4.600 US$ en propuesta 1 (nube)",
         ["Concepto", "Detalle", "US$ / mes"],
         [280, 560, 110],
         COSTOS_1400,

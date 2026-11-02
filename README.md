@@ -2,18 +2,19 @@
 
 Asistente de nivel 1 para operadores de puestos de inscripción. El canal de ayuda es el celular del operador: la tableta del puesto muchas veces es justo lo que está fallando.
 
-## Documentación
+## Dos formas de desplegarlo
 
-| Documento | Qué es |
-| --- | --- |
-| [docs/fuente/incripcion-campo.pdf](docs/fuente/incripcion-campo.pdf) | Propuesta original (levantamiento de necesidad y solución). |
-| [docs/analisis.md](docs/analisis.md) | Lectura del PDF: casos, restricciones y alcance. |
-| [docs/arquitectura-whatsapp-voip.md](docs/arquitectura-whatsapp-voip.md) | Qué implementar y desplegar para WhatsApp y el agente de voz. |
-| [docs/analisis-agente-voz.md](docs/analisis-agente-voz.md) | Cómo se comporta el agente de voz, opciones de construcción y prueba de concepto. |
-| [docs/infraestructura.md](docs/infraestructura.md) | Diagrama de infraestructura, consola de casos y dimensionamiento. |
-| [docs/costos.md](docs/costos.md) | Costo mensual estimado: 15 operadores y escenario de 1.400. |
-| [docs/tiempos.md](docs/tiempos.md) | Calendario de implementación para una persona (PoC a piloto en campo) e historias de usuario. |
-| [propuesta-2/](propuesta-2/README.md) | Propuesta 2: STT/TTS/LLM y datos on-premise; Meta sigue en la nube. |
+Mismo producto (WhatsApp chat + voz, árbol YAML, consola de casos). Distinto hosting de voz, IA y datos:
+
+| | Carpeta | Idea |
+| --- | --- | --- |
+| **Propuesta 1 — nube** | [propuesta-1/](propuesta-1/README.md) | AWS + LiveKit Cloud + Deepgram + Cartesia |
+| **Propuesta 2 — on-premise** | [propuesta-2/](propuesta-2/README.md) | LiveKit OSS + Whisper + Piper + datos en el datacenter; Meta en la nube |
+| **Comparación** | [diferencias-propuestas.md](diferencias-propuestas.md) | Tabla side-by-side, costos y cuándo elegir cada una |
+
+## Documentación común
+
+Requisitos, casos y comportamiento del agente (válidos para ambas propuestas): [docs/](docs/README.md). PDF de levantamiento: [fuente/incripcion-campo.pdf](fuente/incripcion-campo.pdf).
 
 ## Alcance de arranque
 

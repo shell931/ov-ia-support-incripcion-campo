@@ -1,6 +1,6 @@
 # Análisis de la propuesta
 
-Fuente: [incripcion-campo.pdf](fuente/incripcion-campo.pdf). El PDF trae el mismo planteamiento dos veces: las páginas 1–5 incluyen plan e indicadores; las páginas 6–8 repiten contexto, canales y casos, y cierran en la información pendiente.
+Fuente: [incripcion-campo.pdf](../fuente/incripcion-campo.pdf). El PDF trae el mismo planteamiento dos veces: las páginas 1–5 incluyen plan e indicadores; las páginas 6–8 repiten contexto, canales y casos, y cierran en la información pendiente.
 
 ## Problema
 

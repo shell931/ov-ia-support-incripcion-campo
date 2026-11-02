@@ -1,4 +1,4 @@
-# Costos mensuales estimados del piloto
+# Propuesta 1 — Costos mensuales estimados del piloto
 
 Estimación para 15 operadores en campo. Precios de lista consultados el 5 de octubre de 2026, en dólares, sin impuestos, sin desarrollo y sin el ambiente `dev`. Infraestructura en [infraestructura.md](infraestructura.md).
 

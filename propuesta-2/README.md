@@ -1,6 +1,6 @@
 # Propuesta 2 — voz e IA on-premise
 
-Misma solución de negocio que la [propuesta 1](../docs/infraestructura.md): WhatsApp (chat y llamada), tres flujos en YAML, sin transferencia en vivo, consola de casos.
+Misma solución de negocio que la [propuesta 1](../propuesta-1/README.md): WhatsApp (chat y llamada), tres flujos en YAML, sin transferencia en vivo, consola de casos. Comparación lado a lado: [diferencias-propuestas.md](../diferencias-propuestas.md).
 
 Cambia **dónde corre la inteligencia**. Meta se queda en la nube (no hay alternativa). LiveKit, el STT, el TTS, el LLM chico y los datos pasan al **datacenter del cliente**.
 
@@ -105,7 +105,7 @@ Si el reconocimiento falla dos veces, el agente pasa a teclado (`1` sí, `2` no,
 
 ## Costos mensuales
 
-Mismos supuestos de uso que [docs/costos.md](../docs/costos.md): 22 días, 2 incidencias por persona y día, 50 % chat / 50 % voz, 6 min por llamada. **Sin impuestos, sin sueldo de quien opera el datacenter, sin el pico de compra del año 1** (abajo está el equivalente mensual a 36 meses).
+Mismos supuestos de uso que [propuesta-1/costos.md](../propuesta-1/costos.md): 22 días, 2 incidencias por persona y día, 50 % chat / 50 % voz, 6 min por llamada. **Sin impuestos, sin sueldo de quien opera el datacenter, sin el pico de compra del año 1** (abajo está el equivalente mensual a 36 meses).
 
 Si ya tienen rack y energía, la línea de energía/rack baja.
 
@@ -144,6 +144,8 @@ Frente a ≈ 300 US$ de la propuesta 1. En 15 personas el ahorro es chico; el mo
 Frente a ≈ 4.600 US$ de la propuesta 1 en nube. El minuto de voz **deja de tener tarifa de Deepgram y de SIP LiveKit Cloud**. WhatsApp no se recorta.
 
 ## Frente a la propuesta 1
+
+Resumen; tabla ampliada y criterios de elección en [diferencias-propuestas.md](../diferencias-propuestas.md).
 
 | | Propuesta 1 (nube) | Propuesta 2 (esta) |
 | --- | --- | --- |

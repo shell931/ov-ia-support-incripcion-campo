@@ -42,7 +42,7 @@ Identidad mínima antes de actuar sobre credenciales o equipo: cédula y un dato
 
 ## Qué desplegar
 
-Diagrama, consola de casos y dimensionamiento en [infraestructura.md](infraestructura.md).
+Diagrama, consola y dimensionamiento: [propuesta 1](../propuesta-1/infraestructura.md) · [propuesta 2](../propuesta-2/README.md) · [diferencias](../diferencias-propuestas.md).
 
 Un solo ambiente de piloto, con esto encendido:
 

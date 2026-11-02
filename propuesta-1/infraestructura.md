@@ -1,6 +1,6 @@
-# Infraestructura del piloto
+# Propuesta 1 — Infraestructura del piloto
 
-Qué hay que tener encendido para el asistente de WhatsApp, el agente de voz y la consola de casos de la mesa de ayuda. Comportamiento del agente en [analisis-agente-voz.md](analisis-agente-voz.md).
+Qué hay que tener encendido para el asistente de WhatsApp, el agente de voz y la consola de casos de la mesa de ayuda. Comportamiento del agente en [analisis-agente-voz.md](../docs/analisis-agente-voz.md). Alternativa on-premise: [propuesta 2](../propuesta-2/README.md). Comparación: [diferencias-propuestas.md](../diferencias-propuestas.md).
 
 ## Diagrama
 
@@ -20,7 +20,7 @@ Versión en imagen (diagrama + tablas Piezas y costos): [diagramas/infraestructu
 
 Solo el diagrama, sin la tabla: [diagramas/infraestructura-diagrama.png](diagramas/infraestructura-diagrama.png).
 
-Para regenerar la imagen tras editar la tabla Piezas: `python3 docs/diagramas/generate_infraestructura.py`.
+Para regenerar la imagen tras editar la tabla Piezas: `python3 propuesta-1/diagramas/generate_infraestructura.py`.
 
 En el dibujo no aparecen Secrets Manager, CloudWatch ni el NAT Gateway, que usan todos los servicios de la VPC: los secretos de cada proveedor, los logs y alarmas, y la salida hacia Meta, LiveKit y los proveedores de IA.
 

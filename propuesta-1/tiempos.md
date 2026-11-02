@@ -1,4 +1,4 @@
-# Tiempos de implementación del piloto
+# Propuesta 1 — Tiempos de implementación del piloto
 
 Estimación en **días hábiles** para **una sola persona** de desarrollo. Procesos del cliente aprueba los textos de cada paso en paralelo (no cuenta como día de ingeniería).
 
@@ -8,7 +8,7 @@ Fuera de este calendario: foto del cargador, nota de voz de WhatsApp, reenvío a
 
 El camino crítico no es el código: **verificar el número de WhatsApp y habilitar llamadas** (Meta). Hay que arrancarlo el día 1; suele tardar **5 a 15 días**, a veces más. Esa espera se usa para infra, YAML y el motor.
 
-Comportamiento del agente en [analisis-agente-voz.md](analisis-agente-voz.md). Piezas en [infraestructura.md](infraestructura.md). Costos en [costos.md](costos.md).
+Comportamiento del agente en [analisis-agente-voz.md](../docs/analisis-agente-voz.md). Piezas en [infraestructura.md](infraestructura.md). Costos en [costos.md](costos.md). Propuesta 2 (~85–90 días): [diferencias-propuestas.md](../diferencias-propuestas.md).
 
 Con una persona no hay solape de chat, voz y consola: cada fase empieza cuando la anterior está usable. El esfuerzo de las piezas no cambia; el calendario se alarga porque las hace la misma persona en serie.
 
