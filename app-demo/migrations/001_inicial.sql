@@ -5,6 +5,7 @@ create table if not exists sesiones (
     id            text primary key,              -- id de la llamada / sala
     telefono      text not null,
     estado        jsonb not null,                -- core.engine.Estado.a_dict()
+    cedula_enmascarada text,                     -- nunca completa
     creada_en     timestamptz not null default now(),
     actualizada_en timestamptz not null default now()
 );

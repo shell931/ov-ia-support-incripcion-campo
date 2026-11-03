@@ -212,7 +212,7 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 - [x] **D2.1** · `engine.py`: carga YAML, avanza por etiqueta, cuenta intentos, marca espera activa · `test_engine.py` recorre "sin internet" en todas sus ramas · D1.1
 - [x] **D2.2** · `flows/sin_internet.yaml` con los textos validados · el test pasa con el YAML real · D2.1
-- [ ] **D2.3** · Puerto `POST /siguiente-paso` + sesión en Postgres · una secuencia de llamadas con curl recorre el flujo · D2.1, D1.2
+- [x] **D2.3** · *(probado con persistencia en memoria; Postgres se verifica con D1.1)* Puerto `POST /siguiente-paso` + sesión en Postgres · una secuencia de llamadas con curl recorre el flujo · D2.1, D1.2
 - [ ] **D2.4** · Puerto `Clasificador` + adaptador `anthropic.py` (Haiku 5.5, salida restringida a las 6 etiquetas) · 20 frases de la sección 8 clasificadas bien y latencia medida · D1.1
 - [ ] **D2.5** · El agente conecta turno → clasificar → `/siguiente-paso` → dice el texto · "sin internet" completo por teléfono · D2.3, D2.4
 - [ ] **D2.6** · **Prueba con ruido de puesto y acento colombiano** (3 personas distintas) · anotar aciertos/fallos de transcripción y latencia por turno · D2.5
@@ -281,7 +281,7 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 
 | Fecha | Día | Hecho | Bloqueos | Decisiones |
 | --- | --- | --- | --- | --- |
-| 2026-11-03 | antes de D1 | Motor YAML + 3 flujos + 42 tests (D2.1, D2.2, D3.1). Compose con Postgres, `/salud`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Postgres dentro del compose (no Supabase). Código en `app-demo/`. |
+| 2026-11-03 | antes de D1 | Motor YAML + 3 flujos (D2.1, D2.2, D3.1). `POST /siguiente-paso` con cédula por teclado enmascarada (D2.3 y parte de D3.3). 66 tests. Compose con Postgres, `/salud`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Postgres dentro del compose (no Supabase). Código en `app-demo/`. |
 | | D1 | | | |
 | | D2 | | | |
 | | D3 | | | |

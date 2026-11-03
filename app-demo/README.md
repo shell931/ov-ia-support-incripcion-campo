@@ -6,12 +6,15 @@ Código de la demo de la [propuesta 6](../propuesta-6/README.md). Plan y tareas:
 
 | Pieza | Estado |
 | --- | --- |
-| `core/engine.py`: motor de flujos determinista | ✅ con 42 tests |
+| `core/engine.py`: motor de flujos determinista | ✅ |
 | `core/flows/*.yaml`: los tres flujos (textos del PDF, **pendientes de validación por procesos**) | ✅ |
 | `core/api.py`: `GET /salud` | ✅ |
 | `migrations/001_inicial.sql`: `sesiones`, `casos`, `eventos` | ✅ |
 | `docker-compose.yml`: Postgres 16 + núcleo | ✅ (falta probar `docker compose up`) |
-| `POST /siguiente-paso`, `POST /casos` | ⬜ D2.3 / D3.6 |
+| `POST /siguiente-paso`: sesión, teclado de respaldo, cédula por teclado enmascarada | ✅ (tests en memoria; el adaptador Postgres falta probarlo con `docker compose up`) |
+| `core/masking.py`: cédula, solo los 3 últimos dígitos | ✅ |
+| `POST /casos` | ⬜ D3.6 |
+| Tests | 66 en total, todos pasan |
 | `voice_agent/` (LiveKit Agents) | ⬜ D1.4, necesita las cuentas |
 | `console/` | ⬜ D4.1 |
 
