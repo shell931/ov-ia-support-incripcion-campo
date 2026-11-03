@@ -8,20 +8,39 @@ from fastapi import Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from core import db
+from core.cases import CaseStore, NewCase, PostgresCaseStore
 from core.engine import Engine, InvalidTransition, Result, label_from_dtmf, load_flows
-from core.masking import mask_id_number, normalize_id_number
+from core.masking import mask_id_number, mask_numbers_in_text, normalize_id_number
 from core.sessions import PostgresSessionStore, Session, SessionStore
 
 app = FastAPI(title="Core — field enrollment support")
 engine = Engine(load_flows())  # fails at boot if a YAML is invalid: better than failing mid-call
 
-_postgres_store = PostgresSessionStore()
+_postgres_sessions = PostgresSessionStore()
+_postgres_cases = PostgresCaseStore()
 
 
 def get_session_store() -> SessionStore:
     """Persistence adapter injection; tests replace it with an in-memory one."""
-    return _postgres_store
+    return _postgres_sessions
 
+
+def get_case_store() -> CaseStore:
+    return _postgres_cases
+
+
+# --------------------------------------------------------------------------- health
+
+
+@app.get("/health")
+def health(response: Response) -> dict:
+    db_ok = db.is_healthy()
+    if not db_ok:
+        response.status_code = 503
+    return {"status": "ok" if db_ok else "degraded", "postgres": db_ok, "flows": sorted(engine.flows)}
+
+
+# --------------------------------------------------------------------------- next step
 
 Label = Literal["start", "yes", "no", "unclear", "human", "wait"]
 
@@ -62,14 +81,6 @@ def _response(r: Result) -> NextStepResponse:
     )
 
 
-@app.get("/health")
-def health(response: Response) -> dict:
-    db_ok = db.is_healthy()
-    if not db_ok:
-        response.status_code = 503
-    return {"status": "ok" if db_ok else "degraded", "postgres": db_ok, "flows": sorted(engine.flows)}
-
-
 @app.post("/next-step", response_model=NextStepResponse)
 def next_step(req: NextStepRequest, store: SessionStore = Depends(get_session_store)) -> NextStepResponse:
     if req.label == "start":
@@ -78,8 +89,7 @@ def next_step(req: NextStepRequest, store: SessionStore = Depends(get_session_st
         if req.flow not in engine.flows:
             raise HTTPException(422, f"unknown flow '{req.flow}'")
         r = engine.start(req.flow)
-        store.save(Session(req.session_id, req.phone, r.state))
-        store.log_event(req.session_id, "start", {"flow": req.flow, "step": r.step.id})
+        store.save(Session(req.session_id, req.phone, r.state), "start", {"flow": req.flow, "step": r.step.id})
         return _response(r)
 
     session = store.get(req.session_id)
@@ -111,7 +121,60 @@ def next_step(req: NextStepRequest, store: SessionStore = Depends(get_session_st
     except InvalidTransition as e:
         raise HTTPException(409, str(e)) from e
 
-    store.save(Session(session.id, session.phone, r.state, masked_id))
     event.update(applied_label=label, next=r.step.id)
-    store.log_event(session.id, "turn", event)
+    store.save(Session(session.id, session.phone, r.state, masked_id), "turn", event)
     return _response(r)
+
+
+# --------------------------------------------------------------------------- cases
+
+
+class TranscriptTurn(BaseModel):
+    speaker: Literal["operator", "agent"]
+    text: str = Field(max_length=2000)
+
+
+class CreateCaseRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=128)
+    transcript: list[TranscriptTurn] = Field(default_factory=list, max_length=500)
+
+
+class CreateCaseResponse(BaseModel):
+    number: int
+    created: bool  # False when the case already existed (agent retry)
+    destination: str
+    priority: str
+
+
+@app.post("/cases", response_model=CreateCaseResponse)
+def create_case(
+    req: CreateCaseRequest,
+    response: Response,
+    sessions: SessionStore = Depends(get_session_store),
+    cases: CaseStore = Depends(get_case_store),
+) -> CreateCaseResponse:
+    session = sessions.get(req.session_id)
+    if session is None:
+        raise HTTPException(404, "unknown session")
+
+    current = engine.current(session.state)
+    if not current.create_case:
+        raise HTTPException(409, f"step '{current.step.id}' does not create a case")
+
+    destination = current.step.destination or "help_desk"
+    priority = current.step.priority or "normal"
+    number, created = cases.create(
+        NewCase(
+            session_id=session.id,
+            phone=session.phone,
+            masked_id_number=session.masked_id_number,
+            flow=session.state.flow_id,
+            destination=destination,
+            priority=priority,
+            reason=current.step.id,
+            steps_tried=list(session.state.history),
+            transcript=[{"speaker": t.speaker, "text": mask_numbers_in_text(t.text)} for t in req.transcript],
+        )
+    )
+    response.status_code = 201 if created else 200
+    return CreateCaseResponse(number=number, created=created, destination=destination, priority=priority)

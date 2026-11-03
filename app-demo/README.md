@@ -11,11 +11,11 @@ Código de la demo de la [propuesta 6](../propuesta-6/README.md). Plan y tareas:
 | `core/api.py`: `GET /health` | ✅ |
 | `migrations/001_initial.sql`: `sessions`, `cases`, `events` | ✅ |
 | `docker-compose.yml`: núcleo; Postgres propio solo con el perfil `local-db` | ✅ (falta probar `docker compose up`) |
-| `core/migrate.py`: aplica migraciones al arrancar (Supabase o Postgres propio) | ✅ (falta probar contra una base real) |
+| `core/migrate.py`: aplica migraciones al arrancar (Supabase o Postgres propio) | ✅ (probado contra Supabase: `001` y `002` aplicadas) |
 | `POST /next-step`: sesión, teclado de respaldo, cédula por teclado enmascarada | ✅ (tests en memoria; el adaptador Postgres falta probarlo con `docker compose up`) |
 | `core/masking.py`: cédula, solo los 3 últimos dígitos | ✅ |
-| `POST /cases` | ⬜ D3.6 |
-| Tests | 69 en total, todos pasan |
+| `POST /cases`: crea el caso al escalar, idempotente, transcripción enmascarada | ✅ (probado contra Supabase) |
+| Tests | 81 en total, todos pasan |
 | `voice_agent/` (LiveKit Agents) | ⬜ D1.4, necesita las cuentas |
 | `console/` | ⬜ D4.1 |
 

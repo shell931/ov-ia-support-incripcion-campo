@@ -21,6 +21,18 @@ def normalize_id_number(dtmf: str) -> str | None:
     return digits if _ID_NUMBER.match(digits) else None
 
 
+# 6+ digits, optionally separated by spaces, dots or dashes ("10 123 456", "10.123.456").
+_DIGIT_RUN = re.compile(r"\d(?:[\s.\-]?\d){5,}")
+
+
+def mask_numbers_in_text(text: str) -> str:
+    """Mask any spoken/typed run of 6+ digits in free text (e.g. a transcript turn).
+
+    The operator might say their ID number out loud even though the agent asks for the keypad.
+    """
+    return _DIGIT_RUN.sub(lambda m: mask_id_number(m.group(0)), text or "")
+
+
 def mask_id_number(id_number: str) -> str:
     digits = _NON_DIGITS.sub("", id_number or "")
     if len(digits) <= 3:

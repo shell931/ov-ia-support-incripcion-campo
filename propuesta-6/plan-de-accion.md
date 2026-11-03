@@ -244,7 +244,7 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 - [ ] **D3.3** · Cédula por teclado (DTMF) + enmascarado (`masking.py`) · la cédula nunca aparece completa en los logs · D2.5
 - [ ] **D3.4** · Espera activa: en pasos marcados, el silencio no corta y se pregunta cada 20–30 s · reiniciar la tableta no corta la llamada · D2.5
 - [ ] **D3.5** · Teclado como respaldo: dos `unclear` seguidos → "marque 1 para sí, 2 para no, 0 para hablar con alguien" · funciona en los tres flujos · D3.3
-- [ ] **D3.6** · Puerto `POST /cases` + escalamiento: el agente dicta el número de caso · el caso queda en Postgres con pasos y transcripción · D2.3
+- [x] **D3.6** · *(probado contra Supabase: crea el caso, es idempotente, transcripción enmascarada)* Puerto `POST /cases` + escalamiento: el agente dicta el número de caso · el caso queda en Postgres con pasos y transcripción · D2.3
 
 ### Día 4 — Consola + respaldo
 
@@ -302,6 +302,7 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 | 2026-11-03 | antes de D1 | Motor YAML + 3 flujos (D2.1, D2.2, D3.1). `POST /next-step` con cédula por teclado enmascarada (D2.3 y parte de D3.3). 66 tests. Compose con Postgres, `/health`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Código en `app-demo/`. |
 | 2026-11-03 | antes de D1 | Base de la demo en **Supabase** (Postgres plano): pool de conexiones, runner de migraciones, RLS en todas las tablas, Postgres propio como perfil `local-db`. 69 tests. | — | Demo 100 % en la nube; Supabase solo como Postgres. |
 | 2026-11-03 | antes de D1 | Supabase conectado (PostgreSQL 17, us-east-1). Migraciones aplicadas, RLS en las 4 tablas. `/next-step` probado de punta a punta contra la base real: la cédula queda `*******678` y no aparece en los eventos. | Latencia por turno desde Colombia ≈ 850 ms (≈ 84 ms por ida y vuelta × ~10 viajes a la base). Desde un host en us-east-1 debería bajar a decenas de ms. | Agrupar las operaciones de cada turno en una sola transacción (pendiente). |
+| 2026-11-03 | antes de D1 | Cada turno pasa a 2 viajes a la base (lectura + escritura con el evento en una sola sentencia). `POST /cases` (D3.6): idempotente con la migración `002`, transcripción enmascarada, destino y prioridad desde el YAML. 81 tests. | — | Latencia por turno desde Colombia: de ≈ 850 ms a ≈ 179 ms. Desde us-east-1 serán pocos ms. |
 | | D1 | | | |
 | | D2 | | | |
 | | D3 | | | |

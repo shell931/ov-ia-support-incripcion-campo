@@ -5,8 +5,9 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from core.api import app, get_session_store
-from core.masking import mask_id_number, normalize_id_number
+from core.api import app, get_case_store, get_session_store
+from core.cases import InMemoryCaseStore
+from core.masking import mask_id_number, mask_numbers_in_text, normalize_id_number
 from core.sessions import InMemorySessionStore
 
 
@@ -16,8 +17,14 @@ def store() -> InMemorySessionStore:
 
 
 @pytest.fixture
-def client(store: InMemorySessionStore):
+def cases() -> InMemoryCaseStore:
+    return InMemoryCaseStore()
+
+
+@pytest.fixture
+def client(store: InMemorySessionStore, cases: InMemoryCaseStore):
     app.dependency_overrides[get_session_store] = lambda: store
+    app.dependency_overrides[get_case_store] = lambda: cases
     yield TestClient(app)
     app.dependency_overrides.clear()
 
@@ -122,7 +129,96 @@ def test_every_turn_is_logged(client, store):
     assert [t for _, t, _ in store.events] == ["start", "turn"]
 
 
+# --------------------------------------------------------------------------- cases
+
+
+def escalate_no_internet(client):
+    turn(client, "start", flow="no_internet")
+    turn(client, "yes")
+    turn(client, "no")
+    return turn(client, "no").json()  # escalate
+
+
+def create(client, sid="s1", transcript=None):
+    return client.post("/cases", json={"session_id": sid, "transcript": transcript or []})
+
+
+def test_case_is_created_after_escalation(client, cases):
+    escalate_no_internet(client)
+    r = create(client, transcript=[{"speaker": "operator", "text": "no prende el internet"}])
+    assert r.status_code == 201
+    body = r.json()
+    assert body == {"number": 1, "created": True, "destination": "help_desk", "priority": "normal"}
+    case = cases.cases[1]
+    assert case.flow == "no_internet" and case.reason == "escalate"
+    assert case.steps_tried == ["mobile_data", "airplane_mode", "restart", "escalate"]
+
+
+def test_case_creation_is_idempotent(client, cases):
+    escalate_no_internet(client)
+    first = create(client).json()
+    second = create(client)
+    assert second.status_code == 200
+    assert second.json()["number"] == first["number"] and second.json()["created"] is False
+    assert len(cases.cases) == 1
+
+
+def test_case_before_escalation_is_409(client):
+    turn(client, "start", flow="no_internet")
+    assert create(client).status_code == 409
+
+
+def test_case_after_resolved_is_409(client):
+    turn(client, "start", flow="no_internet")
+    turn(client, "yes")
+    turn(client, "yes")  # resolved: no case
+    assert create(client).status_code == 409
+
+
+def test_case_for_unknown_session_is_404(client):
+    assert create(client, sid="nobody").status_code == 404
+
+
+def test_case_carries_destination_priority_and_masked_id(client, cases):
+    turn(client, "start", flow="first_login")
+    turn(client, "unclear", dtmf="1012345678#")
+    turn(client, "yes")
+    turn(client, "yes")
+    turn(client, "no")  # fingerprint
+    turn(client, "no")  # fingerprint_rejected
+    body = create(client).json()
+    assert body["destination"] == "census_office" and body["priority"] == "high"
+    assert cases.cases[body["number"]].masked_id_number == "*******678"
+
+
+def test_transcript_is_masked_before_storage(client, cases):
+    escalate_no_internet(client)
+    create(client, transcript=[{"speaker": "operator", "text": "mi cédula es 10 123 456 78"}])
+    stored = repr(cases.cases[1].transcript)
+    assert "12345678" not in stored.replace(" ", "")
+    assert "678" in stored
+
+
+def test_transcript_speaker_is_validated(client):
+    escalate_no_internet(client)
+    assert create(client, transcript=[{"speaker": "robot", "text": "x"}]).status_code == 422
+
+
 # --------------------------------------------------------------------------- masking
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("mi cédula es 1012345678", "mi cédula es *******678"),
+        ("es el 10.123.456", "es el *****456"),
+        ("paso 3 de 4", "paso 3 de 4"),  # short numbers untouched
+        ("", ""),
+    ],
+)
+def test_mask_numbers_in_text(raw, expected):
+    assert mask_numbers_in_text(raw) == expected
+
 
 
 @pytest.mark.parametrize(

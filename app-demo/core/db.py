@@ -36,7 +36,9 @@ def pool() -> ConnectionPool:
                 max_size=int(os.environ.get("DB_POOL_MAX", "5")),
                 # Supabase's transaction pooler (Supavisor) does not support
                 # server-side prepared statements; disabling them is harmless elsewhere.
-                kwargs={"prepare_threshold": None, "connect_timeout": 5},
+                # autocommit: every statement is its own transaction, so no extra
+                # BEGIN/COMMIT round trips. Multi-row writes use a single statement (CTE).
+                kwargs={"prepare_threshold": None, "connect_timeout": 5, "autocommit": True},
                 open=True,
             )
         return _pool
