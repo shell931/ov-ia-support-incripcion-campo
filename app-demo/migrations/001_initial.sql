@@ -39,3 +39,11 @@ create table if not exists events (
     created_at  timestamptz not null default now()
 );
 create index if not exists events_session_idx on events (session_id, created_at);
+
+-- Row Level Security ON with no policies: on Supabase, tables in "public" are
+-- exposed through its REST API; this blocks that path entirely. The core connects
+-- as the table owner, which bypasses RLS, so it is unaffected. Harmless on a
+-- self-hosted Postgres.
+alter table sessions enable row level security;
+alter table cases    enable row level security;
+alter table events   enable row level security;

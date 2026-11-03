@@ -369,7 +369,7 @@ def cost_band(y0):
         out.append(text(x + 20, ty + 28, h, 15, "700", "#fff"))
     rows = [
         ("Semana de demo", "≈ 20–80 (una vez)", "—", "Cuentas de prueba, una VM y el número. Cédulas ficticias."),
-        ("15 operadores", "≈ 165", "≈ 240", "La nube gana: una GPU para ~1 llamada a la vez no se justifica."),
+        ("15 operadores", "≈ 180", "≈ 240", "La nube gana: una GPU para ~1 llamada a la vez no se justifica."),
         ("1.400 operadores", "≈ 5.400", "≈ 2.030", "Local ahorra ≈ 60 %: el minuto de Deepgram + LiveKit Cloud domina."),
     ]
     for k, (a, b, c, d) in enumerate(rows):

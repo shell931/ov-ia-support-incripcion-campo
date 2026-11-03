@@ -10,11 +10,12 @@ Código de la demo de la [propuesta 6](../propuesta-6/README.md). Plan y tareas:
 | `core/flows/*.yaml`: los tres flujos (textos del PDF, **pendientes de validación por procesos**) | ✅ |
 | `core/api.py`: `GET /health` | ✅ |
 | `migrations/001_initial.sql`: `sessions`, `cases`, `events` | ✅ |
-| `docker-compose.yml`: Postgres 16 + núcleo | ✅ (falta probar `docker compose up`) |
+| `docker-compose.yml`: núcleo; Postgres propio solo con el perfil `local-db` | ✅ (falta probar `docker compose up`) |
+| `core/migrate.py`: aplica migraciones al arrancar (Supabase o Postgres propio) | ✅ (falta probar contra una base real) |
 | `POST /next-step`: sesión, teclado de respaldo, cédula por teclado enmascarada | ✅ (tests en memoria; el adaptador Postgres falta probarlo con `docker compose up`) |
 | `core/masking.py`: cédula, solo los 3 últimos dígitos | ✅ |
 | `POST /cases` | ⬜ D3.6 |
-| Tests | 66 en total, todos pasan |
+| Tests | 69 en total, todos pasan |
 | `voice_agent/` (LiveKit Agents) | ⬜ D1.4, necesita las cuentas |
 | `console/` | ⬜ D4.1 |
 
@@ -30,11 +31,23 @@ uv run --python 3.12 --with-requirements requirements-dev.txt pytest -q
 ```bash
 cd app-demo
 cp .env.example .env      # completar; .env no se sube al repo
-docker compose up --build
+docker compose up --build                       # demo: DATABASE_URL apunta a Supabase
+# docker compose --profile local-db up --build  # local: Postgres propio en el compose
 curl localhost:8000/health
 ```
 
-Postgres corre **dentro del compose** (imagen oficial `postgres:16-alpine`), igual en la notebook, en la VM y en el datacenter. Si algún día se usa uno administrado (Supabase, RDS…), se cambia solo `DATABASE_URL` y se usa como Postgres plano.
+### Base de datos
+
+| Modo | Dónde está Postgres | Cómo se levanta |
+| --- | --- | --- |
+| **Demo (nube)** | **Supabase**, usado como Postgres plano | `docker compose up --build` con `DATABASE_URL` del *Session pooler* |
+| **Local / datacenter** | Contenedor `postgres:16-alpine` | `docker compose --profile local-db up --build` |
+
+- El código solo usa `DATABASE_URL`: nada de Auth, Storage ni la API de Supabase. Por eso la mudanza es cambiar una variable.
+- Las migraciones (`migrations/*.sql`) las aplica `python -m core.migrate` al arrancar el núcleo, en los dos modos. Cada una corre una sola vez (tabla `schema_migrations`).
+- **RLS activado en todas las tablas, sin políticas.** En Supabase, una tabla en `public` sin RLS queda legible por su API REST con la clave anónima. El núcleo se conecta como dueño de las tablas y no se ve afectado. Un test verifica que ninguna tabla quede sin RLS.
+- Pool de conexiones y sin sentencias preparadas (`prepare_threshold=None`): cada turno de voz toca la base varias veces, y el pooler de Supabase en modo transacción no admite sentencias preparadas.
+- Crear el proyecto de Supabase en **la misma región que el núcleo** (us-east-1 para la demo).
 
 ## Reglas (resumen del plan)
 

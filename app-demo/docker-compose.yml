@@ -1,15 +1,29 @@
-# Same file on a laptop, on the demo VM and in the client's datacenter.
+# Same file on a laptop, on the demo cloud host and in the client's datacenter.
 # What changes between modes lives in .env, not here.
+#
+#   Demo (cloud):  DATABASE_URL points to Supabase  ->  docker compose up --build
+#   On-premise:    self-hosted Postgres             ->  docker compose --profile local-db up --build
 services:
+  core:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false   # only waited on when the local-db profile is active
+
+  # Self-hosted Postgres: on-premise mode or offline development.
   postgres:
     image: postgres:16-alpine
+    profiles: ["local-db"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
       POSTGRES_DB: ${POSTGRES_DB:-soporte}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -17,17 +31,6 @@ services:
       retries: 10
     ports:
       - "127.0.0.1:5432:5432"   # localhost only; never published
-
-  core:
-    build: .
-    env_file: .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://app:app@postgres:5432/soporte}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
 
   # voice-agent and console are added in D1.4 and D4.1.
 

@@ -28,8 +28,8 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | Código | Carpeta `app-demo/` en este mismo repo | Decisión del 2026-11-03: documentación y demo juntas. |
 | Clasificador | **Claude Haiku 5.5** (`claude-haiku-5-5`) con el SDK oficial de Anthropic, detrás de un puerto propio `Classifier` | El más barato de los evaluados ($0,10 / $0,50 por millón de tokens de entrada / salida). En local se cambia el adaptador por uno compatible con OpenAI (Ollama o vLLM); el núcleo no se entera. |
 | Lógica del flujo | Motor YAML determinista | El LLM solo clasifica; no redacta el procedimiento. |
-| Datos | Postgres plano | Se muda sin dependencias de proveedor. |
-| Despliegue | `docker-compose.yml` en una VM | El mismo archivo va al datacenter. |
+| Datos | **Supabase** en la demo, usado como **Postgres plano** (solo `DATABASE_URL`; sin Auth, Storage ni API de Supabase). En local: Postgres propio con el perfil `local-db` del compose. | Demo totalmente en la nube con backups y panel para ver las tablas; la mudanza es cambiar una variable. RLS activado en todas las tablas para que la API REST de Supabase no las exponga. |
+| Despliegue | `docker-compose.yml` (núcleo + agente) en un host en la nube; Postgres en Supabase | El mismo archivo va al datacenter, ahí con `--profile local-db`. |
 | Datos de prueba | Cédulas ficticias | Ley 1581: en modo nube la voz pasa por proveedores de EE. UU. |
 
 ## 3. Decisiones pendientes (antes del día 1)
@@ -37,7 +37,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | # | Pregunta | Recomendación | Responsable | Estado |
 | --- | --- | --- | --- | --- |
 | P1 | ¿Dónde vive el código? | **Decidido:** carpeta `app-demo/` en este repo. | Carlos | ✅ |
-| P2 | ¿Qué VM? | Cualquier proveedor con 4 vCPU / 8 GB y IP pública. Si es posible, cerca de us-east, que es donde responden los proveedores de voz. | | ⬜ |
+| P2 | ¿Dónde corren el núcleo y el agente de voz? | Un host en la nube con Docker (VM o PaaS que corra contenedores de larga vida). En **la misma región que el proyecto de Supabase** (us-east-1): cada turno de voz toca la base varias veces. | | ⬜ |
 | P3 | ¿Qué LLM chico? | **Decidido:** Claude Haiku 5.5 con el SDK oficial de Anthropic, detrás del puerto `Classifier` (ver sección 6). | Carlos | ✅ |
 | P4 | ¿Qué voz en español? | Probar 2 o 3 voces de Cartesia con acento neutro latinoamericano el día 1 y elegir con el equipo. | | ⬜ |
 | P5 | ¿Número de EE. UU. o de Colombia para la demo? | EE. UU. si el colombiano no está el día 1. Respaldo: llamada desde el navegador. | | ⬜ |
@@ -48,6 +48,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 - [ ] Cuenta en **LiveKit Cloud** con proyecto creado.
 - [ ] Cuenta y API key de **Deepgram**.
 - [ ] Cuenta y API key de **Anthropic** (Claude Haiku 5.5).
+- [ ] Proyecto en **Supabase** en la región **us-east-1**, con la cadena de conexión del *Session pooler* en `DATABASE_URL`.
 - [ ] Cuenta y API key de **Cartesia**.
 - [ ] **VM** creada con Docker y Docker Compose (P2).
 - [ ] Dominio o subdominio para la consola (opcional en la demo).
@@ -203,8 +204,8 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 1 — Base en pie
 
-- [ ] **D1.1** · *(código listo en `app-demo/`; falta verificar `docker compose up`)* Crear estructura de la sección 5 · `docker compose up` levanta Postgres y un `core` que responde `/health` · —
-- [ ] **D1.2** · *(SQL listo en `migrations/001_initial.sql`; se verifica con D1.1)* Migración inicial: tablas `sessions`, `cases`, `events` · tablas creadas al levantar · D1.1
+- [ ] **D1.1** · *(código listo en `app-demo/`; falta verificar `docker compose up`)* Crear estructura de la sección 5 · `docker compose up` contra Supabase levanta un `core` que aplica las migraciones y responde `/health` con `postgres: true` · —
+- [ ] **D1.2** · *(SQL listo en `migrations/001_initial.sql`; se verifica con D1.1)* Migración inicial: tablas `sessions`, `cases`, `events` · tablas creadas al levantar (las aplica `core.migrate`), con RLS activado · D1.1
 - [ ] **D1.3** · Número en LiveKit Cloud + regla de despacho al agente · llamar al número dispara una sesión del agente · Prerrequisitos
 - [ ] **D1.4** · `voice_agent` mínimo: atiende y saluda con la voz elegida · se oye el saludo al llamar desde un celular · D1.3
 - [ ] **D1.5** · `providers.py`: STT y TTS elegidos por variable de entorno · cambiar `TTS_VOICE` cambia la voz sin tocar código · D1.4
@@ -286,7 +287,8 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 
 | Fecha | Día | Hecho | Bloqueos | Decisiones |
 | --- | --- | --- | --- | --- |
-| 2026-11-03 | antes de D1 | Motor YAML + 3 flujos (D2.1, D2.2, D3.1). `POST /next-step` con cédula por teclado enmascarada (D2.3 y parte de D3.3). 66 tests. Compose con Postgres, `/health`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Postgres dentro del compose (no Supabase). Código en `app-demo/`. |
+| 2026-11-03 | antes de D1 | Motor YAML + 3 flujos (D2.1, D2.2, D3.1). `POST /next-step` con cédula por teclado enmascarada (D2.3 y parte de D3.3). 66 tests. Compose con Postgres, `/health`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Código en `app-demo/`. |
+| 2026-11-03 | antes de D1 | Base de la demo en **Supabase** (Postgres plano): pool de conexiones, runner de migraciones, RLS en todas las tablas, Postgres propio como perfil `local-db`. 69 tests. | Falta crear el proyecto de Supabase. | Demo 100 % en la nube; Supabase solo como Postgres. |
 | | D1 | | | |
 | | D2 | | | |
 | | D3 | | | |

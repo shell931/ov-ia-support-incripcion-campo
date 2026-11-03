@@ -20,7 +20,8 @@ Precios orientativos, USD, sin impuestos ni desarrollo. Claude Haiku 5.5 a $0,10
 
 | Concepto | US$ |
 | --- | ---: |
-| VM (2–4 vCPU) con Docker Compose, prorrateada | 5–15 |
+| Host en la nube (2–4 vCPU) con Docker Compose, prorrateado | 5–15 |
+| Supabase, plan gratuito (en el piloto pasa a Pro) | 0 |
 | LiveKit Cloud | 0–50 según plan |
 | Deepgram, LLM y Cartesia: unos cientos de minutos de prueba | 5–15 |
 | Número telefónico | 1–5 |
@@ -32,9 +33,9 @@ Igual a P4 en voz, pero **sin ECS, RDS ni Terraform**: una VM con el mismo `dock
 
 | Concepto | Detalle | US$ / mes |
 | --- | --- | ---: |
-| **Infraestructura** | | **≈ 50** |
-| VM 4 vCPU / 8 GB | Núcleo, Postgres, consola, voice-agent ×2 | 40 |
-| Backups + dominio | Snapshots diarios | 10 |
+| **Infraestructura** | | **≈ 65** |
+| Host 4 vCPU / 8 GB | Núcleo, consola, voice-agent ×2 | 40 |
+| Supabase Pro | Postgres administrado con backups | 25 |
 | **Voz e IA** | | **≈ 86** |
 | LiveKit Cloud (Ship) | ≈ 4.000 min dentro de los 5.000 incluidos | 50 |
 | Deepgram | 4.000 × 0,0077 | 31 |
@@ -42,7 +43,7 @@ Igual a P4 en voz, pero **sin ECS, RDS ni Terraform**: una VM con el mismo `dock
 | Cartesia | Frases dinámicas; pasos pregrabados | 4 |
 | **Telefonía** | Número + minutos entrantes | **≈ 15** |
 | **SMS (opcional)** | Número de caso al escalar | **10** |
-| **Total** | | **≈ 160–170** |
+| **Total** | | **≈ 175–185** |
 
 ## Modo nube — 1.400 operadores
 
@@ -71,7 +72,7 @@ Es el mismo hardware y la misma operación que [P5](../propuesta-5/costos.md); n
 
 | Escala | Nube | Local | Qué conviene |
 | --- | ---: | ---: | --- |
-| 15 operadores | ≈ 165 | ≈ 240 | **Nube.** Una GPU para ~1 llamada simultánea no se paga sola. |
+| 15 operadores | ≈ 180 | ≈ 240 | **Nube.** Una GPU para ~1 llamada simultánea no se paga sola. |
 | 1.400 operadores | ≈ 5.400 | ≈ 2.030 | **Local.** Ahorra ≈ 60 %: Deepgram + LiveKit Cloud por minuto dominan. El clasificador casi no pesa. |
 
 El punto de quiebre que reporta un análisis de terceros es **7.000–10.000 min/mes** ([Meetrix](https://meetrix.io/blogs/ai-phone-agent-cost/)). Este proyecto lo pasa con unos **25–35 operadores** (≈ 264 min/mes por operador). Es orientativo.

@@ -102,7 +102,7 @@ Comportamientos del agente que no cambian entre modos (detalle en [analisis-agen
 | Demo | ~día 28 | Después del hardware | **Día 5** |
 | Al piloto (1 persona) | ~60–65 días | ~75–85 días | **~45–50 días** (modo nube) |
 | Mudanza a local | Rehacer infra y voz | Ya es local | **~15–20 días, sin tocar el núcleo** |
-| 15 operadores / mes | ≈ 310 | ≈ 240 | ≈ **165** nube · ≈ 240 local |
+| 15 operadores / mes | ≈ 310 | ≈ 240 | ≈ **180** nube · ≈ 240 local |
 | 1.400 operadores / mes | ≈ 4.800 (*) | ≈ 2.030 | ≈ **5.400** nube · ≈ **2.030** local |
 
 (*) Ver la nota de [costos.md](costos.md): sumando las líneas de P4 a 1.400 operadores da unos 6.900, no 4.800.
