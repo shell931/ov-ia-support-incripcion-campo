@@ -45,14 +45,26 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 
 ## 4. Prerrequisitos (día 0)
 
-- [ ] Cuenta en **LiveKit Cloud** con proyecto creado.
-- [ ] Cuenta y API key de **Deepgram**.
-- [ ] Cuenta y API key de **Anthropic** (Claude Haiku 5.5).
-- [ ] Proyecto en **Supabase** en la región **us-east-1**, con la cadena de conexión del *Session pooler* en `DATABASE_URL`.
-- [ ] Cuenta y API key de **Cartesia**.
-- [ ] **VM** creada con Docker y Docker Compose (P2).
-- [ ] Dominio o subdominio para la consola (opcional en la demo).
-- [ ] **Trámite del número colombiano iniciado**: identificación + dirección dentro de la zona del número ([Twilio — Colombia](https://www.twilio.com/en-us/guidelines/co/regulatory)).
+### Cuentas
+
+Las claves van **solo** en `app-demo/.env` (no se sube al repo): nunca en el chat, en un commit ni en un documento.
+
+| # | Cuenta | Dónde | Qué hay que hacer | Qué va en `.env` | ¿Bloquea? |
+| --- | --- | --- | --- | --- | --- |
+| C1 | **LiveKit Cloud** | cloud.livekit.io | Crear un proyecto. En *Telephony*: comprar un número para la demo y crear la regla de despacho hacia el agente (D1.3). | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | Sí, desde D1.3 |
+| C2 | **Deepgram** | console.deepgram.com | Crear una API key. | `DEEPGRAM_API_KEY` | Sí, desde D2.5 |
+| C3 | **Cartesia** | play.cartesia.ai | Crear una API key y elegir 2–3 voces en español para probar (P4). | `CARTESIA_API_KEY`, `TTS_VOICE` | Sí, desde D1.4 |
+| C4 | **Anthropic** | platform.claude.com | Crear una API key y cargar saldo (Claude Haiku 5.5). | `ANTHROPIC_API_KEY` | Sí, desde D2.4 |
+| C5 | **Supabase** | supabase.com/dashboard | Crear un proyecto en **us-east-1** con una contraseña fuerte para la base. En *Connect* copiar la cadena del ***Session pooler***. | `DATABASE_URL` | Sí, desde D1.1 |
+| C6 | **Hosting del núcleo y el agente** (P2, a decidir) | VM o plataforma de contenedores (AWS, DigitalOcean, Railway, Render…) | Un host con Docker en **us-east-1**, la misma región que Supabase. El agente de voz es un proceso que queda corriendo, no una función por pedido. | — | Sí, para la demo en vivo (antes se puede correr en una notebook) |
+| C7 | **GitHub** | github.com | Ya existe: `shell931/ov-ia-support-incripcion-campo`. | — | No |
+| C8 | **Número colombiano** (Twilio u otro operador) | twilio.com/console | Iniciar el trámite: identificación + dirección dentro de la zona del número ([Twilio — Colombia](https://www.twilio.com/en-us/guidelines/co/regulatory)). Para la demo alcanza el número de C1. | `SIP_TRUNK` (en el piloto) | No para la demo; sí para el piloto |
+| C9 | **Dominio** | cualquier registrador | Subdominio para la consola (ej. `consola.<dominio>`). | — | No (opcional en la demo) |
+
+Casi todas piden tarjeta de crédito. Conviene usar una tarjeta de la empresa y poner **alertas o tope de gasto** donde la plataforma lo permita.
+
+### Además de las cuentas
+
 - [ ] **Guion de la demo** escrito y validado (sección 8).
 - [ ] Textos de los tres flujos validados por procesos (pueden ser los del [PDF](../fuente/incripcion-campo.pdf) en la primera versión).
 - [ ] 2 o 3 celulares para probar, y un audio de **ruido de puesto** (fila, conversaciones) para las pruebas.
