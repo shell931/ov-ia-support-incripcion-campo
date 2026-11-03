@@ -42,7 +42,7 @@ Identidad mínima antes de actuar sobre credenciales o equipo: cédula y un dato
 
 ## Qué desplegar
 
-Diagrama y despliegue: [P1](../propuesta-1/infraestructura.md) · [P2](../propuesta-2/README.md) · [P3](../propuesta-3/README.md) · [P4 PSTN](../propuesta-4/README.md) · [diferencias](../diferencias-propuestas.md).
+Diagrama y despliegue: [P1](../propuesta-1/infraestructura.md) · [P2](../propuesta-2/README.md) · [P3](../propuesta-3/README.md) · [P4 PSTN](../propuesta-4/README.md) · [P5 PSTN on-prem](../propuesta-5/README.md) · [diferencias](../diferencias-propuestas.md).
 
 Un solo ambiente de piloto, con esto encendido:
 
