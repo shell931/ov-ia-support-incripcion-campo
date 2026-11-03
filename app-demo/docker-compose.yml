@@ -1,18 +1,34 @@
-# Same file on a laptop, on the demo cloud host and in the client's datacenter.
+# Same file on a laptop, on the demo EC2 instance and in the client's datacenter.
 # What changes between modes lives in .env, not here.
 #
-#   Demo (cloud):  DATABASE_URL points to Supabase  ->  docker compose up --build
-#   On-premise:    self-hosted Postgres             ->  docker compose --profile local-db up --build
+#   Demo (cloud, EC2 us-east-1):  DATABASE_URL points to Supabase  ->  docker compose up -d --build
+#   On-premise:                   self-hosted Postgres             ->  docker compose --profile local-db up -d --build
 services:
+  # Public entry point: HTTPS + help-desk console (Angular) + console API routes only.
+  web:
+    build: ./console
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # TLS certificates survive restarts
+      - caddy_config:/config
+    depends_on:
+      - core
+    restart: unless-stopped
+
   core:
     build: .
     env_file: .env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"   # never public; Caddy and the voice agent reach it inside the network
     depends_on:
       postgres:
         condition: service_healthy
         required: false   # only waited on when the local-db profile is active
+    restart: unless-stopped
 
   # Self-hosted Postgres: on-premise mode or offline development.
   postgres:
@@ -32,7 +48,9 @@ services:
     ports:
       - "127.0.0.1:5432:5432"   # localhost only; never published
 
-  # voice-agent and console are added in D1.4 and D4.1.
+  # voice-agent is added in D1.4 (needs the LiveKit, Deepgram, Cartesia and Anthropic keys).
 
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

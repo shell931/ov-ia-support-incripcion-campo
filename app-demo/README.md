@@ -15,9 +15,12 @@ Código de la demo de la [propuesta 6](../propuesta-6/README.md). Plan y tareas:
 | `POST /next-step`: sesión, teclado de respaldo, cédula por teclado enmascarada | ✅ (tests en memoria; el adaptador Postgres falta probarlo con `docker compose up`) |
 | `core/masking.py`: cédula, solo los 3 últimos dígitos | ✅ |
 | `POST /cases`: crea el caso al escalar, idempotente, transcripción enmascarada | ✅ (probado contra Supabase) |
-| Tests | 81 en total, todos pasan |
+| Tests | 93 en total, todos pasan |
 | `voice_agent/` (LiveKit Agents) | ⬜ D1.4, necesita las cuentas |
-| `console/` | ⬜ D4.1 |
+| API de la consola: `GET /cases`, `GET /cases/{n}`, `POST /cases/{n}/take`, `POST /cases/{n}/close` | ✅ (probado contra Supabase) |
+| `Caddyfile`: HTTPS, contraseña, solo `/api/cases*` expuesto | ✅ (validado con `caddy validate`) |
+| `console/` (Angular) | ⏳ en curso |
+| Despliegue en EC2 | 📄 [DEPLOY.md](DEPLOY.md) |
 
 ## Correr los tests (sin Docker ni cuentas)
 

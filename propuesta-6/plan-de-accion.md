@@ -37,11 +37,11 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | # | Pregunta | Recomendación | Responsable | Estado |
 | --- | --- | --- | --- | --- |
 | P1 | ¿Dónde vive el código? | **Decidido:** carpeta `app-demo/` en este repo. | Carlos | ✅ |
-| P2 | ¿Dónde corren el núcleo y el agente de voz? | Un host en la nube con Docker (VM o PaaS que corra contenedores de larga vida). En **la misma región que el proyecto de Supabase** (us-east-1): cada turno de voz toca la base varias veces. | | ⬜ |
+| P2 | ¿Dónde corren el núcleo y el agente de voz? | **Decidido:** una instancia **EC2 en us-east-1** con `docker compose` (web + core + voice-agent), conectada al Supabase existente. Guía: [`app-demo/DEPLOY.md`](../app-demo/DEPLOY.md). | Carlos | ✅ |
 | P3 | ¿Qué LLM chico? | **Decidido:** Claude Haiku 5.5 con el SDK oficial de Anthropic, detrás del puerto `Classifier` (ver sección 6). | Carlos | ✅ |
 | P4 | ¿Qué voz en español? | Probar 2 o 3 voces de Cartesia con acento neutro latinoamericano el día 1 y elegir con el equipo. | | ⬜ |
 | P5 | ¿Número de EE. UU. o de Colombia para la demo? | EE. UU. si el colombiano no está el día 1. Respaldo: llamada desde el navegador. | | ⬜ |
-| P6 | ¿Consola con qué tecnología? | Renderizada en el servidor (FastAPI + plantillas), sin SPA. Es una bandeja, no un producto. | | ⬜ |
+| P6 | ¿Consola con qué tecnología? | **Decidido: Angular** (el equipo lo conoce y la consola sigue en el piloto). Servida por Caddy en `/`, API en `/api` del mismo origen (sin CORS). | Carlos | ✅ |
 
 ## 4. Prerrequisitos (día 0)
 
@@ -56,7 +56,7 @@ Las claves van **solo** en `app-demo/.env` (no se sube al repo): nunca en el cha
 | C3 | **Cartesia** | play.cartesia.ai | Crear una API key y elegir 2–3 voces en español para probar (P4). | `CARTESIA_API_KEY`, `TTS_VOICE` | Sí, desde D1.4 |
 | C4 | **Anthropic** | platform.claude.com | Crear una API key y cargar saldo (Claude Haiku 5.5). | `ANTHROPIC_API_KEY` | Sí, desde D2.4 |
 | C5 | **Supabase** | supabase.com/dashboard | Crear un proyecto en **us-east-1** con una contraseña fuerte para la base. En *Connect* copiar la cadena del ***Session pooler***. | `DATABASE_URL` | Sí, desde D1.1 |
-| C6 | **Hosting del núcleo y el agente** (P2, a decidir) | VM o plataforma de contenedores (AWS, DigitalOcean, Railway, Render…) | Un host con Docker en **us-east-1**, la misma región que Supabase. El agente de voz es un proceso que queda corriendo, no una función por pedido. | — | Sí, para la demo en vivo (antes se puede correr en una notebook) |
+| C6 | **AWS (EC2)** | console.aws.amazon.com | Instancia t3.medium Ubuntu 24.04 en **us-east-1**, Elastic IP y security group mínimo (22 solo tu IP, 80/443). Paso a paso en [`app-demo/DEPLOY.md`](../app-demo/DEPLOY.md). | `SITE_ADDRESS`, `CONSOLE_USER`, `CONSOLE_PASSWORD_HASH` | Sí, para la demo en vivo (antes se puede correr en una notebook) |
 | C7 | **GitHub** | github.com | Ya existe: `shell931/ov-ia-support-incripcion-campo`. | — | No |
 | C8 | **Número colombiano** (Twilio u otro operador) | twilio.com/console | Iniciar el trámite: identificación + dirección dentro de la zona del número ([Twilio — Colombia](https://www.twilio.com/en-us/guidelines/co/regulatory)). Para la demo alcanza el número de C1. | `SIP_TRUNK` (en el piloto) | No para la demo; sí para el piloto |
 | C9 | **Dominio** | cualquier registrador | Subdominio para la consola (ej. `consola.<dominio>`). | — | No (opcional en la demo) |
@@ -95,9 +95,11 @@ app-demo/                       # dentro de este repo
 │       ├── port.py             # interfaz: classify(text, current_step) -> label
 │       ├── anthropic.py        # modo nube: Claude Haiku 5.5, SDK oficial
 │       └── openai_compat.py    # modo local: Ollama / vLLM
-├── console/                    # bandeja de la mesa
-│   ├── app.py
-│   └── templates/
+├── console/                    # bandeja de la mesa — Angular (build estático servido por Caddy)
+│   ├── src/app/cases/          # cola, detalle, servicio HTTP
+│   └── Dockerfile              # node build → caddy
+├── Caddyfile                   # HTTPS, contraseña, consola en /, solo /api/cases* expuesto
+├── DEPLOY.md                   # paso a paso en EC2
 ├── tests/
 │   ├── test_engine.py          # los tres árboles recorridos sin voz
 │   ├── test_api.py             # /next-step con persistencia en memoria
@@ -248,9 +250,9 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 4 — Consola + respaldo
 
-- [ ] **D4.1** · Consola: cola por prioridad y tiempo de espera · los casos de D3.6 aparecen · D3.6
-- [ ] **D4.2** · Detalle del caso: teléfono, cédula enmascarada, flujo, pasos intentados, transcripción · todo visible sin consultar la base · D4.1
-- [ ] **D4.3** · Tomar y cerrar caso (causa + notas) · un caso tomado no se puede tomar de nuevo · D4.1
+- [ ] **D4.1** · *(API lista y probada contra Supabase: `GET /cases`, `GET /cases/{n}`; pantalla en Angular en curso)* Consola: cola por prioridad y tiempo de espera · los casos de D3.6 aparecen · D3.6
+- [ ] **D4.2** · *(API lista: el detalle trae el texto de cada paso intentado y la transcripción enmascarada)* Detalle del caso: teléfono, cédula enmascarada, flujo, pasos intentados, transcripción · todo visible sin consultar la base · D4.1
+- [ ] **D4.3** · *(API lista y probada: `POST /cases/{n}/take` y `/close`, 409 si otra persona ya lo tomó)* Tomar y cerrar caso (causa + notas) · un caso tomado no se puede tomar de nuevo · D4.1
 - [ ] **D4.4** · Correr G1, G2 y G3 completos · los tres salen sin intervención manual · D3.*
 - [ ] **D4.5** · **Grabar el video de respaldo** (llamada + consola en pantalla) · video guardado fuera de la VM · D4.4
 

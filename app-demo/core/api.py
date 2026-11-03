@@ -8,7 +8,18 @@ from fastapi import Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from core import db
-from core.cases import CaseStore, NewCase, PostgresCaseStore
+from datetime import datetime, timezone
+
+from core.cases import (
+    OPEN_STATUSES,
+    Case,
+    CaseClosed,
+    CaseNotFound,
+    CaseStore,
+    CaseTakenByOther,
+    NewCase,
+    PostgresCaseStore,
+)
 from core.engine import Engine, InvalidTransition, Result, label_from_dtmf, load_flows
 from core.masking import mask_id_number, mask_numbers_in_text, normalize_id_number
 from core.sessions import PostgresSessionStore, Session, SessionStore
@@ -178,3 +189,115 @@ def create_case(
     )
     response.status_code = 201 if created else 200
     return CreateCaseResponse(number=number, created=created, destination=destination, priority=priority)
+
+
+# --------------------------------------------------------------------------- console
+# Exposed to the browser through Caddy under /api (GET /cases*, POST /cases/{n}/take|close only).
+
+CaseStatus = Literal["open", "taken", "closed"]
+CloseReason = Literal["resolved_by_phone", "tablet_replaced", "sent_to_census", "other"]
+
+
+class StepTried(BaseModel):
+    id: str
+    text: str
+
+
+class CaseSummary(BaseModel):
+    number: int
+    status: CaseStatus
+    priority: str
+    flow: str
+    flow_description: str
+    destination: str
+    phone: str
+    masked_id_number: str | None
+    reason: str
+    taken_by: str | None
+    created_at: datetime
+    waiting_minutes: int
+
+
+class CaseDetail(CaseSummary):
+    steps_tried: list[StepTried]
+    transcript: list[TranscriptTurn]
+    close_reason: str | None
+    notes: str | None
+
+
+class TakeCaseRequest(BaseModel):
+    taken_by: str = Field(min_length=1, max_length=80)
+
+
+class CloseCaseRequest(BaseModel):
+    close_reason: CloseReason
+    notes: str = Field(default="", max_length=2000)
+
+
+def _summary_fields(c: Case) -> dict:
+    flow = engine.flows.get(c.flow)
+    created = c.created_at if c.created_at.tzinfo else c.created_at.replace(tzinfo=timezone.utc)
+    return {
+        "number": c.number,
+        "status": c.status,
+        "priority": c.priority,
+        "flow": c.flow,
+        "flow_description": flow.description if flow else c.flow,
+        "destination": c.destination,
+        "phone": c.phone,
+        "masked_id_number": c.masked_id_number,
+        "reason": c.reason,
+        "taken_by": c.taken_by,
+        "created_at": created,
+        "waiting_minutes": max(0, int((datetime.now(timezone.utc) - created).total_seconds() // 60)),
+    }
+
+
+def _detail(c: Case) -> CaseDetail:
+    flow = engine.flows.get(c.flow)
+    steps = [
+        StepTried(id=s, text=flow.steps[s].text if flow and s in flow.steps else s) for s in c.steps_tried
+    ]
+    return CaseDetail(
+        **_summary_fields(c),
+        steps_tried=steps,
+        transcript=[TranscriptTurn(**t) for t in c.transcript],
+        close_reason=c.close_reason,
+        notes=c.notes,
+    )
+
+
+@app.get("/cases", response_model=list[CaseSummary])
+def list_cases(status: CaseStatus | None = None, cases: CaseStore = Depends(get_case_store)) -> list[CaseSummary]:
+    statuses = (status,) if status else OPEN_STATUSES
+    return [CaseSummary(**_summary_fields(c)) for c in cases.list(statuses)]
+
+
+@app.get("/cases/{number}", response_model=CaseDetail)
+def get_case(number: int, cases: CaseStore = Depends(get_case_store)) -> CaseDetail:
+    case = cases.get(number)
+    if case is None:
+        raise HTTPException(404, "case not found")
+    return _detail(case)
+
+
+@app.post("/cases/{number}/take", response_model=CaseDetail)
+def take_case(number: int, req: TakeCaseRequest, cases: CaseStore = Depends(get_case_store)) -> CaseDetail:
+    try:
+        return _detail(cases.take(number, req.taken_by.strip()))
+    except CaseNotFound:
+        raise HTTPException(404, "case not found")
+    except CaseClosed:
+        raise HTTPException(409, "case is already closed")
+    except CaseTakenByOther as e:
+        raise HTTPException(409, f"case already taken by {e.taken_by}")
+
+
+@app.post("/cases/{number}/close", response_model=CaseDetail)
+def close_case(number: int, req: CloseCaseRequest, cases: CaseStore = Depends(get_case_store)) -> CaseDetail:
+    try:
+        return _detail(cases.close(number, req.close_reason, req.notes.strip()))
+    except CaseNotFound:
+        raise HTTPException(404, "case not found")
+    except CaseClosed:
+        raise HTTPException(409, "case is already closed")

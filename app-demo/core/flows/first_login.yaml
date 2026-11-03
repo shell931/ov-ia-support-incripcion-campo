@@ -2,7 +2,7 @@
 # Source: fuente/incripcion-campo.pdf (Aplicación). Spoken texts PENDING review by the process team.
 # The ID number (cédula) is ALWAYS entered on the keypad (DTMF) and masked before storage.
 id: first_login
-description: First login to the app (user, password and fingerprint).
+description: Primer logueo (usuario, contraseña y huella)  # shown in the console (content: Spanish)
 start: ask_id_number
 escalate: escalate
 max_unclear_attempts: 2

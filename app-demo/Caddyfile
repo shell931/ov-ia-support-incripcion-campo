@@ -1,0 +1,54 @@
+# Public entry point on the EC2 instance: HTTPS (automatic, Let's Encrypt), the
+# help-desk console, and ONLY the API routes the console needs.
+#
+# /next-step and POST /cases are NOT exposed: only the voice agent calls them,
+# inside the docker network (http://core:8000).
+#
+# SITE_ADDRESS: a domain pointing to the instance's Elastic IP (e.g. consola.<domain>,
+# or <ip-with-dashes>.sslip.io for the demo). ":80" = plain HTTP, local dev only.
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# The console shows operators' phone numbers: never open without a password.
+	# Hash: docker run --rm caddy:2.10-alpine caddy hash-password --plaintext '<password>'
+	basic_auth {
+		{$CONSOLE_USER} {$CONSOLE_PASSWORD_HASH}
+	}
+
+	@console_read {
+		method GET
+		path /api/cases /api/cases/*
+	}
+	@console_write {
+		method POST
+		path_regexp ^/api/cases/[0-9]+/(take|close)$
+	}
+
+	handle @console_read {
+		uri strip_prefix /api
+		reverse_proxy core:8000
+	}
+	handle @console_write {
+		uri strip_prefix /api
+		reverse_proxy core:8000
+	}
+	handle /api/* {
+		respond "Not found" 404
+	}
+
+	# Angular app (built into /srv by console/Dockerfile).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		-Server
+	}
+}

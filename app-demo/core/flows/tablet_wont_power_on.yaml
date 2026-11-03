@@ -1,7 +1,7 @@
 # Flow: the tablet is damaged, won't power on, or is not at the station.
 # Source: fuente/incripcion-campo.pdf (Tableta). Spoken texts PENDING review by the process team.
 id: tablet_wont_power_on
-description: The tablet won't power on, is damaged, or is not at the station.
+description: Tableta no enciende, dañada o no disponible  # shown in the console (content: Spanish)
 start: tablet_at_station
 escalate: escalate
 max_unclear_attempts: 2

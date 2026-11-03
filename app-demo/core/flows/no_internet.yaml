@@ -2,7 +2,7 @@
 # Source: fuente/incripcion-campo.pdf (Conectividad). Spoken texts PENDING review by the process team.
 # Rule: short sentences, one action per turn; the operator's hands are busy.
 id: no_internet
-description: The tablet has no Internet connection.
+description: Tableta sin conexión a Internet  # shown in the console (content: Spanish)
 start: mobile_data
 escalate: escalate
 max_unclear_attempts: 2
