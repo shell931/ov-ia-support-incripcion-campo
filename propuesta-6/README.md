@@ -21,6 +21,7 @@ Imagen con costos: [arquitectura.png](arquitectura.png) ([SVG](arquitectura.svg)
 | --- | --- |
 | [costos.md](costos.md) | Semana de demo, modo nube y modo local (15 y 1.400 operadores). |
 | [tiempos.md](tiempos.md) | Demo en 5 días, camino al piloto y mudanza a local. |
+| [plan-de-accion.md](plan-de-accion.md) | **Plan de acción y tareas día por día** (documento de trabajo). |
 
 ## Por qué existe esta propuesta
 
