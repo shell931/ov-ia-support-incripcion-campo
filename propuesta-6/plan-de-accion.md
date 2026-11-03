@@ -216,8 +216,8 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 1 — Base en pie
 
-- [ ] **D1.1** · *(código listo en `app-demo/`; falta verificar `docker compose up`)* Crear estructura de la sección 5 · `docker compose up` contra Supabase levanta un `core` que aplica las migraciones y responde `/health` con `postgres: true` · —
-- [ ] **D1.2** · *(SQL listo en `migrations/001_initial.sql`; se verifica con D1.1)* Migración inicial: tablas `sessions`, `cases`, `events` · tablas creadas al levantar (las aplica `core.migrate`), con RLS activado · D1.1
+- [ ] **D1.1** · *(núcleo verificado contra Supabase: `/health` 200 con `postgres: true` y `/next-step` de punta a punta; falta solo correrlo con `docker compose up`)* Crear estructura de la sección 5 · `docker compose up` contra Supabase levanta un `core` que aplica las migraciones y responde `/health` con `postgres: true` · —
+- [x] **D1.2** · *(aplicada en Supabase el 2026-11-03: 4 tablas con RLS; segunda corrida sin cambios)* Migración inicial: tablas `sessions`, `cases`, `events` · tablas creadas al levantar (las aplica `core.migrate`), con RLS activado · D1.1
 - [ ] **D1.3** · Número en LiveKit Cloud + regla de despacho al agente · llamar al número dispara una sesión del agente · Prerrequisitos
 - [ ] **D1.4** · `voice_agent` mínimo: atiende y saluda con la voz elegida · se oye el saludo al llamar desde un celular · D1.3
 - [ ] **D1.5** · `providers.py`: STT y TTS elegidos por variable de entorno · cambiar `TTS_VOICE` cambia la voz sin tocar código · D1.4
@@ -300,7 +300,8 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 | Fecha | Día | Hecho | Bloqueos | Decisiones |
 | --- | --- | --- | --- | --- |
 | 2026-11-03 | antes de D1 | Motor YAML + 3 flujos (D2.1, D2.2, D3.1). `POST /next-step` con cédula por teclado enmascarada (D2.3 y parte de D3.3). 66 tests. Compose con Postgres, `/health`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Código en `app-demo/`. |
-| 2026-11-03 | antes de D1 | Base de la demo en **Supabase** (Postgres plano): pool de conexiones, runner de migraciones, RLS en todas las tablas, Postgres propio como perfil `local-db`. 69 tests. | Falta crear el proyecto de Supabase. | Demo 100 % en la nube; Supabase solo como Postgres. |
+| 2026-11-03 | antes de D1 | Base de la demo en **Supabase** (Postgres plano): pool de conexiones, runner de migraciones, RLS en todas las tablas, Postgres propio como perfil `local-db`. 69 tests. | — | Demo 100 % en la nube; Supabase solo como Postgres. |
+| 2026-11-03 | antes de D1 | Supabase conectado (PostgreSQL 17, us-east-1). Migraciones aplicadas, RLS en las 4 tablas. `/next-step` probado de punta a punta contra la base real: la cédula queda `*******678` y no aparece en los eventos. | Latencia por turno desde Colombia ≈ 850 ms (≈ 84 ms por ida y vuelta × ~10 viajes a la base). Desde un host en us-east-1 debería bajar a decenas de ms. | Agrupar las operaciones de cada turno en una sola transacción (pendiente). |
 | | D1 | | | |
 | | D2 | | | |
 | | D3 | | | |
