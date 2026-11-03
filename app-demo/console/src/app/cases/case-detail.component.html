@@ -1,0 +1,119 @@
+<a routerLink="/" class="back">&larr; Volver a la cola</a>
+
+@if (loading()) {
+  <p class="muted">Cargando caso...</p>
+} @else if (!detail()) {
+  <div class="error">{{ error() }}</div>
+} @else {
+  @let d = detail()!;
+
+  <div class="card head">
+    <div>
+      <h1>Caso #{{ d.number }}</h1>
+      <p class="flow">{{ d.flow_description }}</p>
+      <p class="muted">
+        Destino: <strong>{{ destinations[d.destination] }}</strong> ·
+        Espera: {{ formatWaiting(d.waiting_minutes) }} ·
+        Estado: {{ statuses[d.status] }}@if (d.taken_by) { por {{ d.taken_by }} }
+      </p>
+      @if (d.reason) {
+        <p class="muted">Motivo de escalamiento: {{ d.reason }}</p>
+      }
+    </div>
+    <span class="badge" [class.high]="d.priority === 'high'">{{ priorities[d.priority] }}</span>
+  </div>
+
+  <div class="card contact">
+    <div>
+      <div class="muted">Teléfono del operador</div>
+      <strong class="phone">{{ d.phone }}</strong>
+    </div>
+    <div>
+      <div class="muted">Cédula</div>
+      <strong>{{ d.masked_id_number ?? 'No registrada' }}</strong>
+    </div>
+    <a class="btn" [href]="'tel:' + d.phone">Llamar</a>
+  </div>
+
+  @if (error()) {
+    <div class="error">{{ error() }}</div>
+  }
+
+  <div class="columns">
+    <div class="card">
+      <h2>Pasos intentados</h2>
+      @if (d.steps_tried.length === 0) {
+        <p class="muted">El agente no registró pasos.</p>
+      } @else {
+        <ol class="steps">
+          @for (s of d.steps_tried; track s.id; let i = $index) {
+            <li [class.last]="i === lastStep()">
+              {{ s.text }}
+              @if (i === lastStep()) {
+                <span class="tag">Aquí se escaló</span>
+              }
+            </li>
+          }
+        </ol>
+      }
+    </div>
+
+    <div class="card">
+      <h2>Transcripción</h2>
+      @if (d.transcript.length === 0) {
+        <p class="muted">Sin transcripción.</p>
+      } @else {
+        <ul class="chat">
+          @for (t of d.transcript; track $index) {
+            <li [class.agent]="t.speaker === 'agent'">
+              <span class="who">{{ t.speaker === 'agent' ? 'Agente' : 'Operador' }}</span>
+              <span class="bubble">{{ t.text }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+
+  <div class="card">
+    @switch (d.status) {
+      @case ('open') {
+        <h2>Atención</h2>
+        @if (askName()) {
+          <form class="name-form" (ngSubmit)="confirmName()">
+            <label for="staff-name">¿Cuál es su nombre? Se registrará como quien toma el caso.</label>
+            <div class="row">
+              <input id="staff-name" name="staffName" [(ngModel)]="nameDraft" autofocus />
+              <button type="submit" [disabled]="busy() || !nameDraft.trim()">Continuar</button>
+            </div>
+          </form>
+        } @else {
+          <button (click)="take()" [disabled]="busy()">Tomar caso</button>
+        }
+      }
+      @case ('taken') {
+        <h2>Cerrar caso</h2>
+        <form class="close-form" (ngSubmit)="close()">
+          <label for="reason">Motivo de cierre</label>
+          <select id="reason" name="closeReason" [(ngModel)]="closeReason">
+            @for (r of closeReasons; track r) {
+              <option [value]="r">{{ closeLabels[r] }}</option>
+            }
+          </select>
+          <label for="notes">Notas</label>
+          <textarea id="notes" name="notes" rows="3" [(ngModel)]="notes"></textarea>
+          <button type="submit" [disabled]="busy()">Cerrar caso</button>
+        </form>
+      }
+      @case ('closed') {
+        <h2>Caso cerrado</h2>
+        <p>
+          Motivo: <strong>{{ d.close_reason ? closeLabels[d.close_reason] : '-' }}</strong>
+        </p>
+        @if (d.notes) {
+          <p class="muted">{{ d.notes }}</p>
+        }
+      }
+    }
+  </div>
+}

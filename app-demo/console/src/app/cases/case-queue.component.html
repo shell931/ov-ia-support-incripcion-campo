@@ -1,0 +1,49 @@
+<div class="header">
+  <h1>Cola de casos</h1>
+  <div class="tabs" role="tablist">
+    <button role="tab" [class.active]="tab() === 'open'" [attr.aria-selected]="tab() === 'open'" (click)="select('open')">Abiertos</button>
+    <button role="tab" [class.active]="tab() === 'closed'" [attr.aria-selected]="tab() === 'closed'" (click)="select('closed')">Cerrados</button>
+  </div>
+</div>
+
+@if (error()) {
+  <div class="error">{{ error() }}</div>
+}
+
+<div class="card table-card">
+  @if (!loaded()) {
+    <p class="muted pad">Cargando casos...</p>
+  } @else if (items().length === 0) {
+    <p class="muted pad">No hay casos {{ tab() === 'open' ? 'abiertos' : 'cerrados' }} por ahora.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Caso</th>
+          <th>Prioridad</th>
+          <th>Problema</th>
+          <th>Destino</th>
+          <th>Espera</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of items(); track c.number) {
+          <tr (click)="open(c)" tabindex="0" (keydown.enter)="open(c)">
+            <td>#{{ c.number }}</td>
+            <td><span class="badge" [class.high]="c.priority === 'high'">{{ priorities[c.priority] }}</span></td>
+            <td>{{ c.flow_description }}</td>
+            <td>{{ destinations[c.destination] }}</td>
+            <td>{{ formatWaiting(c.waiting_minutes) }}</td>
+            <td>
+              {{ statuses[c.status] }}
+              @if (c.taken_by) {
+                <span class="muted">· {{ c.taken_by }}</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

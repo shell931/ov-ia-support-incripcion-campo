@@ -1,0 +1,21 @@
+.back { display: inline-block; margin-bottom: 12px; color: var(--primary); text-decoration: none; }
+.head { display: flex; justify-content: space-between; align-items: flex-start; h1 { margin-bottom: 4px; } }
+.flow { font-size: 1.1rem; margin: 0 0 8px; }
+.badge {
+  padding: 4px 14px; border-radius: 14px; font-weight: 600; background: #e4e7ec; color: #475467;
+  &.high { background: var(--danger); color: #fff; }
+}
+.contact { display: flex; align-items: center; gap: 40px; .btn { margin-left: auto; } }
+.phone { font-size: 1.2rem; }
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.steps { margin: 0; padding-left: 22px; li { margin-bottom: 8px; } }
+.steps .last { color: var(--danger); font-weight: 600; }
+.tag { margin-left: 8px; font-size: 0.75rem; background: var(--danger-bg); color: var(--danger); padding: 2px 8px; border-radius: 10px; }
+.chat { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.chat li { display: flex; flex-direction: column; align-items: flex-end; }
+.chat li.agent { align-items: flex-start; }
+.who { font-size: 0.75rem; color: var(--muted); margin-bottom: 2px; }
+.bubble { max-width: 85%; padding: 8px 12px; border-radius: 12px; background: var(--ok-bg); }
+.agent .bubble { background: #eef1f6; }
+.close-form, .name-form { display: flex; flex-direction: column; gap: 8px; max-width: 520px; button { align-self: flex-start; margin-top: 4px; } }
+.row { display: flex; gap: 8px; input { flex: 1; } }

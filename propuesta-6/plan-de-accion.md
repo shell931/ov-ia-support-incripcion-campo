@@ -250,9 +250,9 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 4 — Consola + respaldo
 
-- [ ] **D4.1** · *(API lista y probada contra Supabase: `GET /cases`, `GET /cases/{n}`; pantalla en Angular en curso)* Consola: cola por prioridad y tiempo de espera · los casos de D3.6 aparecen · D3.6
-- [ ] **D4.2** · *(API lista: el detalle trae el texto de cada paso intentado y la transcripción enmascarada)* Detalle del caso: teléfono, cédula enmascarada, flujo, pasos intentados, transcripción · todo visible sin consultar la base · D4.1
-- [ ] **D4.3** · *(API lista y probada: `POST /cases/{n}/take` y `/close`, 409 si otra persona ya lo tomó)* Tomar y cerrar caso (causa + notas) · un caso tomado no se puede tomar de nuevo · D4.1
+- [ ] **D4.1** · *(API probada contra Supabase; pantalla Angular compilada; falta probarla en el navegador con datos reales)* Consola: cola por prioridad y tiempo de espera · los casos de D3.6 aparecen · D3.6
+- [ ] **D4.2** · *(API y pantalla listas: pasos intentados con su texto, transcripción enmascarada, botón Llamar)* Detalle del caso: teléfono, cédula enmascarada, flujo, pasos intentados, transcripción · todo visible sin consultar la base · D4.1
+- [ ] **D4.3** · *(API y pantalla listas: tomar con nombre, cerrar con causa; el 409 se muestra en español)* Tomar y cerrar caso (causa + notas) · un caso tomado no se puede tomar de nuevo · D4.1
 - [ ] **D4.4** · Correr G1, G2 y G3 completos · los tres salen sin intervención manual · D3.*
 - [ ] **D4.5** · **Grabar el video de respaldo** (llamada + consola en pantalla) · video guardado fuera de la VM · D4.4
 

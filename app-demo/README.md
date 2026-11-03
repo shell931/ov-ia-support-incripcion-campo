@@ -19,7 +19,7 @@ Código de la demo de la [propuesta 6](../propuesta-6/README.md). Plan y tareas:
 | `voice_agent/` (LiveKit Agents) | ⬜ D1.4, necesita las cuentas |
 | API de la consola: `GET /cases`, `GET /cases/{n}`, `POST /cases/{n}/take`, `POST /cases/{n}/close` | ✅ (probado contra Supabase) |
 | `Caddyfile`: HTTPS, contraseña, solo `/api/cases*` expuesto | ✅ (validado con `caddy validate`) |
-| `console/` (Angular) | ⏳ en curso |
+| `console/` (Angular 22): cola, detalle, tomar y cerrar | ✅ compila (`ng build`, 70 KB iniciales) y pasan sus 7 tests; falta probarla contra el núcleo en el navegador |
 | Despliegue en EC2 | 📄 [DEPLOY.md](DEPLOY.md) |
 
 ## Correr los tests (sin Docker ni cuentas)
