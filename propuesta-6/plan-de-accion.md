@@ -198,8 +198,8 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 1 — Base en pie
 
-- [ ] **D1.1** · Crear repo y estructura de la sección 5 · `docker compose up` levanta Postgres y un `core` que responde `/salud` · —
-- [ ] **D1.2** · Migración inicial: tablas `sesiones`, `casos`, `eventos` · tablas creadas al levantar · D1.1
+- [ ] **D1.1** · *(código listo en `app-demo/`; falta verificar `docker compose up`)* Crear estructura de la sección 5 · `docker compose up` levanta Postgres y un `core` que responde `/salud` · —
+- [ ] **D1.2** · *(SQL listo en `migrations/001_inicial.sql`; se verifica con D1.1)* Migración inicial: tablas `sesiones`, `casos`, `eventos` · tablas creadas al levantar · D1.1
 - [ ] **D1.3** · Número en LiveKit Cloud + regla de despacho al agente · llamar al número dispara una sesión del agente · Prerrequisitos
 - [ ] **D1.4** · `voice_agent` mínimo: atiende y saluda con la voz elegida · se oye el saludo al llamar desde un celular · D1.3
 - [ ] **D1.5** · `providers.py`: STT y TTS elegidos por variable de entorno · cambiar `TTS_VOZ` cambia la voz sin tocar código · D1.4
@@ -210,8 +210,8 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 2 — Primer flujo completo + prueba de realidad
 
-- [ ] **D2.1** · `engine.py`: carga YAML, avanza por etiqueta, cuenta intentos, marca espera activa · `test_engine.py` recorre "sin internet" en todas sus ramas · D1.1
-- [ ] **D2.2** · `flows/sin_internet.yaml` con los textos validados · el test pasa con el YAML real · D2.1
+- [x] **D2.1** · `engine.py`: carga YAML, avanza por etiqueta, cuenta intentos, marca espera activa · `test_engine.py` recorre "sin internet" en todas sus ramas · D1.1
+- [x] **D2.2** · `flows/sin_internet.yaml` con los textos validados · el test pasa con el YAML real · D2.1
 - [ ] **D2.3** · Puerto `POST /siguiente-paso` + sesión en Postgres · una secuencia de llamadas con curl recorre el flujo · D2.1, D1.2
 - [ ] **D2.4** · Puerto `Clasificador` + adaptador `anthropic.py` (Haiku 5.5, salida restringida a las 6 etiquetas) · 20 frases de la sección 8 clasificadas bien y latencia medida · D1.1
 - [ ] **D2.5** · El agente conecta turno → clasificar → `/siguiente-paso` → dice el texto · "sin internet" completo por teléfono · D2.3, D2.4
@@ -221,7 +221,7 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 3 — Los tres flujos + escalamiento
 
-- [ ] **D3.1** · `flows/primer_logueo.yaml` y `flows/tableta_no_enciende.yaml` · tests de ambos árboles pasan · D2.1
+- [x] **D3.1** · *(adelantada)* `flows/primer_logueo.yaml` y `flows/tableta_no_enciende.yaml` · tests de ambos árboles pasan · D2.1
 - [ ] **D3.2** · Elección de flujo al inicio ("¿Qué le pasa? ¿No tiene internet, no enciende la tableta o no puede entrar?") · el agente enruta bien los tres casos · D2.5
 - [ ] **D3.3** · Cédula por teclado (DTMF) + enmascarado (`masking.py`) · la cédula nunca aparece completa en los logs · D2.5
 - [ ] **D3.4** · Espera activa: en pasos marcados, el silencio no corta y se pregunta cada 20–30 s · reiniciar la tableta no corta la llamada · D2.5
@@ -281,6 +281,7 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 
 | Fecha | Día | Hecho | Bloqueos | Decisiones |
 | --- | --- | --- | --- | --- |
+| 2026-11-03 | antes de D1 | Motor YAML + 3 flujos + 42 tests (D2.1, D2.2, D3.1). Compose con Postgres, `/salud`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Postgres dentro del compose (no Supabase). Código en `app-demo/`. |
 | | D1 | | | |
 | | D2 | | | |
 | | D3 | | | |
