@@ -1,6 +1,6 @@
 # Diferencias entre propuestas 1, 2, 3, 4 y 5
 
-Las cinco resuelven **el mismo problema de negocio** (operador en campo, árbol YAML, escalamiento con número de caso, **sin transferencia en vivo**). Cambian **canal de entrada**, **hosting** y **pipeline de voz**.
+Las seis resuelven **el mismo problema de negocio** (operador en campo, árbol YAML, escalamiento con número de caso, **sin transferencia en vivo**). Cambian **canal de entrada**, **hosting** y **pipeline de voz**.
 
 ## Dónde está cada cosa en el repo
 
@@ -61,3 +61,19 @@ Supuestos: 22 días, 2 incidencias/día, 6 min/llamada. P1/P2/P3: 50 % chat / 50
 ## Qué no cambia
 
 - Tres casos YAML, DTMF, consola de mesa, sin transferencia en vivo en la llamada del operador.
+
+## Propuesta 6 — una arquitectura, dos modos
+
+[propuesta-6/](propuesta-6/README.md) no es un sexto stack: es **P4 y P5 con el mismo código**. Arranca en nube (demo por llamada en **5 días**, piloto en ~45–50) y se muda a local cuando el cliente lo pida, por protección de datos o por costo, en ~15–20 días **sin tocar el núcleo**.
+
+| | P4 | P5 | P6 |
+| --- | --- | --- | --- |
+| Canal | Teléfono | Teléfono | Teléfono |
+| Hosting | AWS + servicios de voz | Local | Nube (VM + Docker) → local |
+| Demo | ~día 28 | Después del hardware | **Día 5** |
+| 15 op. / mes | ≈ 310 | ≈ 240 | ≈ 180 nube · ≈ 240 local |
+| 1.400 op. / mes | ≈ 4.800 (*) | ≈ 2.030 | ≈ 6.300 nube · ≈ 2.030 local |
+
+(*) Las líneas de la tabla de 1.400 de [propuesta-4/costos.md](propuesta-4/costos.md) suman ≈ 6.900. Ver la nota en [propuesta-6/costos.md](propuesta-6/costos.md#nota-sobre-los-costos-de-p4).
+
+**Elegir P6 si** hay que mostrar algo ya y la mudanza a local puede llegar en cualquier momento.

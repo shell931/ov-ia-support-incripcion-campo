@@ -1,6 +1,6 @@
 # Documentación común
 
-Material que aplica **a las cinco propuestas** de arquitectura (mismo producto, distinto canal y despliegue).
+Material que aplica **a las seis propuestas** de arquitectura (mismo producto, distinto canal y despliegue).
 
 | Documento | Qué es |
 | --- | --- |

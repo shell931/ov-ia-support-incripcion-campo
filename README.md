@@ -13,6 +13,7 @@ Mismo árbol YAML y consola de casos; cambian canal de entrada, hosting y voz:
 | **Propuesta 3 — stack ligero** | [propuesta-3/](propuesta-3/README.md) | WhatsApp + Railway + Supabase + Haiku + GPT Live |
 | **Propuesta 4 — PSTN como P1** | [propuesta-4/](propuesta-4/README.md) | **Llamada telefónica normal** + misma pila AWS/voz que P1 |
 | **Propuesta 5 — PSTN on-prem** | [propuesta-5/](propuesta-5/README.md) | **Teléfono PSTN** + servidores locales (mezcla P4 × P2) |
+| **Propuesta 6 — dos modos** | [propuesta-6/](propuesta-6/README.md) | **Teléfono** + LiveKit Agents: **demo en 1 semana en nube**, se muda a local cambiando configuración (P4 → P5) |
 | **Comparación** | [diferencias-propuestas.md](diferencias-propuestas.md) | Tabla side-by-side, costos y cuándo elegir |
 
 ## Documentación común
