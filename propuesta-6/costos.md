@@ -14,7 +14,7 @@ Los mismos de [P4](../propuesta-4/costos.md) y [P5](../propuesta-5/costos.md), p
 | Medio | **100 % llamada** de 6 min |
 | Minutos de voz al mes | ≈ **4.000** / ≈ **370.000** |
 
-Precios orientativos, USD, sin impuestos ni desarrollo. Tarifas de voz tomadas de P4 (Deepgram 0,0077/min, LiveKit Ship con 5.000 min incluidos y 0,004/min de excedente). Hay que revalidarlas antes de presentar.
+Precios orientativos, USD, sin impuestos ni desarrollo. Claude Haiku 5.5 a $0,10 / $0,50 por millón de tokens de entrada / salida (precio de lista de Anthropic, noviembre 2026). Tarifas de voz tomadas de P4 (Deepgram 0,0077/min, LiveKit Ship con 5.000 min incluidos y 0,004/min de excedente). Hay que revalidarlas antes de presentar.
 
 ## Semana de demo (una vez)
 
@@ -35,28 +35,28 @@ Igual a P4 en voz, pero **sin ECS, RDS ni Terraform**: una VM con el mismo `dock
 | **Infraestructura** | | **≈ 50** |
 | VM 4 vCPU / 8 GB | Núcleo, Postgres, consola, voice-agent ×2 | 40 |
 | Backups + dominio | Snapshots diarios | 10 |
-| **Voz e IA** | | **≈ 97** |
+| **Voz e IA** | | **≈ 86** |
 | LiveKit Cloud (Ship) | ≈ 4.000 min dentro de los 5.000 incluidos | 50 |
 | Deepgram | 4.000 × 0,0077 | 31 |
-| LLM chico | ≈ 12.000 clasificaciones | 12 |
+| Claude Haiku 5.5 | ≈ 12.000 clasificaciones × ~300 tokens de entrada + ~5 de salida | < 1 |
 | Cartesia | Frases dinámicas; pasos pregrabados | 4 |
 | **Telefonía** | Número + minutos entrantes | **≈ 15** |
 | **SMS (opcional)** | Número de caso al escalar | **10** |
-| **Total** | | **≈ 170–180** |
+| **Total** | | **≈ 160–170** |
 
 ## Modo nube — 1.400 operadores
 
 | Concepto | Detalle | US$ / mes |
 | --- | --- | ---: |
 | **Infraestructura** | 4 VMs para agentes + Postgres administrado | **≈ 380** |
-| **Voz e IA** | | **≈ 5.370** |
+| **Voz e IA** | | **≈ 4.470** |
 | LiveKit Cloud | 50 + (370.000 − 5.000) × 0,004 | 1.510 |
 | Deepgram | 370.000 × 0,0077 | 2.850 |
-| LLM | ≈ 840.000 clasificaciones (cifra de P4) | 930 |
+| Claude Haiku 5.5 | ≈ 840.000 clasificaciones × ~300 tokens ($0,10 / $0,50 por millón) | ≈ 30 |
 | Cartesia | | 80 |
 | **Telefonía** | Minutos entrantes, tarifa por volumen | **≈ 450** |
 | **SMS** | | **≈ 80** |
-| **Total** | | **≈ 6.300** |
+| **Total** | | **≈ 5.400** |
 
 ## Modo local
 
@@ -71,8 +71,8 @@ Es el mismo hardware y la misma operación que [P5](../propuesta-5/costos.md); n
 
 | Escala | Nube | Local | Qué conviene |
 | --- | ---: | ---: | --- |
-| 15 operadores | ≈ 180 | ≈ 240 | **Nube.** Una GPU para ~1 llamada simultánea no se paga sola. |
-| 1.400 operadores | ≈ 6.300 | ≈ 2.030 | **Local.** Ahorra ≈ 2/3: Deepgram + LiveKit Cloud por minuto dominan. |
+| 15 operadores | ≈ 165 | ≈ 240 | **Nube.** Una GPU para ~1 llamada simultánea no se paga sola. |
+| 1.400 operadores | ≈ 5.400 | ≈ 2.030 | **Local.** Ahorra ≈ 60 %: Deepgram + LiveKit Cloud por minuto dominan. El clasificador casi no pesa. |
 
 El punto de quiebre que reporta un análisis de terceros es **7.000–10.000 min/mes** ([Meetrix](https://meetrix.io/blogs/ai-phone-agent-cost/)). Este proyecto lo pasa con unos **25–35 operadores** (≈ 264 min/mes por operador). Es orientativo.
 

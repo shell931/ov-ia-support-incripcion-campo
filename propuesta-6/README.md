@@ -2,7 +2,7 @@
 
 El operador **marca un número de teléfono** (como P4 y P5). El agente de voz se construye **una sola vez** con **LiveKit Agents** y corre en dos modos:
 
-- **Modo demo / nube**: LiveKit Cloud, Deepgram, LLM chico por API y Cartesia. Se puede mostrar en **una semana**.
+- **Modo demo / nube**: LiveKit Cloud, Deepgram, Claude Haiku 5.5 y Cartesia. Se puede mostrar en **una semana**.
 - **Modo local**: LiveKit OSS, Faster-Whisper, LLM local y Piper en el datacenter del cliente. Es el destino de P5.
 
 Pasar de un modo al otro es **cambiar configuración, no código**. El cliente puede pedir la mudanza **en cualquier momento**, por **protección de datos** (Ley 1581) o por **costo**, y la arquitectura tiene que soportar ese pedido sin reescribir nada.
@@ -54,7 +54,7 @@ Se respetan desde el **día 1 de la demo**. Si alguna se rompe, la mudanza vuelv
 | Telefonía | Número de LiveKit Cloud | Troncal SIP de un operador colombiano | `SIP_TRUNK` |
 | Servidor de voz | LiveKit Cloud | LiveKit OSS en el datacenter | `LIVEKIT_URL` |
 | Voz → texto | Deepgram | Faster-Whisper (GPU) | `STT` |
-| Clasificación | LLM chico por API | LLM local (Ollama o vLLM, CPU) | `LLM_BASE_URL` |
+| Clasificación | Claude Haiku 5.5 (SDK de Anthropic) | LLM local (Ollama o vLLM, CPU) | `CLASIFICADOR` + `LLM_BASE_URL` |
 | Texto → voz | Cartesia (+ pasos pregrabados) | Piper (+ pasos pregrabados) | `TTS` |
 | Núcleo, Postgres, consola | Docker en una VM | **El mismo** Docker en el datacenter | — |
 
@@ -102,8 +102,8 @@ Comportamientos del agente que no cambian entre modos (detalle en [analisis-agen
 | Demo | ~día 28 | Después del hardware | **Día 5** |
 | Al piloto (1 persona) | ~60–65 días | ~75–85 días | **~45–50 días** (modo nube) |
 | Mudanza a local | Rehacer infra y voz | Ya es local | **~15–20 días, sin tocar el núcleo** |
-| 15 operadores / mes | ≈ 310 | ≈ 240 | ≈ **180** nube · ≈ 240 local |
-| 1.400 operadores / mes | ≈ 4.800 (*) | ≈ 2.030 | ≈ **6.300** nube · ≈ **2.030** local |
+| 15 operadores / mes | ≈ 310 | ≈ 240 | ≈ **165** nube · ≈ 240 local |
+| 1.400 operadores / mes | ≈ 4.800 (*) | ≈ 2.030 | ≈ **5.400** nube · ≈ **2.030** local |
 
 (*) Ver la nota de [costos.md](costos.md): sumando las líneas de P4 a 1.400 operadores da unos 6.900, no 4.800.
 

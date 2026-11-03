@@ -24,7 +24,9 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | --- | --- | --- |
 | Canal | Llamada telefónica | El cliente no tiene WhatsApp verificado; la demo es solo por voz. |
 | Agente de voz | LiveKit Agents (Python) | Es el único de los evaluados que también corre en local. |
-| Modo inicial | Nube: LiveKit Cloud + Deepgram + LLM chico por API + Cartesia | Velocidad para la demo. |
+| Modo inicial | Nube: LiveKit Cloud + Deepgram + Claude Haiku 5.5 + Cartesia | Velocidad para la demo. |
+| Código | Carpeta `app-demo/` en este mismo repo | Decisión del 2026-11-03: documentación y demo juntas. |
+| Clasificador | **Claude Haiku 5.5** (`claude-haiku-5-5`) con el SDK oficial de Anthropic, detrás de un puerto propio `Clasificador` | El más barato de los evaluados ($0,10 / $0,50 por millón de tokens de entrada / salida). En local se cambia el adaptador por uno compatible con OpenAI (Ollama o vLLM); el núcleo no se entera. |
 | Lógica del flujo | Motor YAML determinista | El LLM solo clasifica; no redacta el procedimiento. |
 | Datos | Postgres plano | Se muda sin dependencias de proveedor. |
 | Despliegue | `docker-compose.yml` en una VM | El mismo archivo va al datacenter. |
@@ -34,9 +36,9 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 
 | # | Pregunta | Recomendación | Responsable | Estado |
 | --- | --- | --- | --- | --- |
-| P1 | ¿Dónde vive el código? | Repo nuevo (ej. `ov-ia-support-voz`); este repo queda para documentación. | | ⬜ |
+| P1 | ¿Dónde vive el código? | **Decidido:** carpeta `app-demo/` en este repo. | Carlos | ✅ |
 | P2 | ¿Qué VM? | Cualquier proveedor con 4 vCPU / 8 GB y IP pública. Si es posible, cerca de us-east, que es donde responden los proveedores de voz. | | ⬜ |
-| P3 | ¿Qué LLM chico? | Uno con API compatible con OpenAI, para que el cambio a Ollama o vLLM sea solo de URL. | | ⬜ |
+| P3 | ¿Qué LLM chico? | **Decidido:** Claude Haiku 5.5 con el SDK oficial de Anthropic, detrás del puerto `Clasificador` (ver sección 6). | Carlos | ✅ |
 | P4 | ¿Qué voz en español? | Probar 2 o 3 voces de Cartesia con acento neutro latinoamericano el día 1 y elegir con el equipo. | | ⬜ |
 | P5 | ¿Número de EE. UU. o de Colombia para la demo? | EE. UU. si el colombiano no está el día 1. Respaldo: llamada desde el navegador. | | ⬜ |
 | P6 | ¿Consola con qué tecnología? | Renderizada en el servidor (FastAPI + plantillas), sin SPA. Es una bandeja, no un producto. | | ⬜ |
@@ -45,7 +47,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 
 - [ ] Cuenta en **LiveKit Cloud** con proyecto creado.
 - [ ] Cuenta y API key de **Deepgram**.
-- [ ] Cuenta y API key del **LLM** elegido (P3).
+- [ ] Cuenta y API key de **Anthropic** (Claude Haiku 5.5).
 - [ ] Cuenta y API key de **Cartesia**.
 - [ ] **VM** creada con Docker y Docker Compose (P2).
 - [ ] Dominio o subdominio para la consola (opcional en la demo).
@@ -57,7 +59,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 ## 5. Estructura del código
 
 ```text
-ov-ia-support-voz/
+app-demo/                       # dentro de este repo
 ├── docker-compose.yml          # núcleo, postgres, consola, voice-agent
 ├── .env.example                # ver sección 7
 ├── core/                       # NÚCLEO — no importa nada de LiveKit ni de proveedores
@@ -72,8 +74,11 @@ ov-ia-support-voz/
 │   └── api.py                  # puertos HTTP: /siguiente-paso, /casos
 ├── voice_agent/                # ADAPTADOR — LiveKit Agents
 │   ├── agent.py                # sesión de llamada, turnos, DTMF, espera activa
-│   ├── providers.py            # STT / LLM / TTS elegidos por variable de entorno
-│   └── classify.py             # texto → sí / no / no_entendí / persona / esperar
+│   ├── providers.py            # STT / TTS elegidos por variable de entorno
+│   └── classify/               # PUERTO Clasificador: texto → sí / no / no_entendí / persona / esperar
+│       ├── port.py             # interfaz: clasificar(texto, paso) -> etiqueta
+│       ├── anthropic.py        # modo nube: Claude Haiku 5.5, SDK oficial
+│       └── openai_compat.py    # modo local: Ollama / vLLM
 ├── console/                    # bandeja de la mesa
 │   ├── app.py
 │   └── templates/
@@ -86,6 +91,8 @@ ov-ia-support-voz/
 **Regla de revisión:** `core/` no puede importar nada de `voice_agent/` ni de ningún SDK de proveedor. Si pasa, la mudanza se rompe.
 
 ## 6. Contratos del núcleo (puertos)
+
+El clasificador también es un puerto: `clasificar(texto, paso_actual) -> etiqueta`. La etiqueta sale de una lista cerrada de 6 valores (salida estructurada), así que cambiar de Haiku a un modelo local no cambia el contrato. Para la voz, la latencia manda: esfuerzo bajo, respuesta corta y medir el tiempo por turno el día 2.
 
 Son la frontera hexagonal. El agente de voz solo conoce esto.
 
@@ -157,9 +164,10 @@ STT_BASE_URL=                                    # local: http://whisper:8000/v1
 DEEPGRAM_API_KEY=
 
 # --- Clasificador
-LLM_BASE_URL=https://api.<proveedor>/v1          # local: http://llm:11434/v1
-LLM_MODEL=
-LLM_API_KEY=
+CLASIFICADOR=anthropic                           # local: openai-compat
+LLM_MODEL=claude-haiku-5-5                       # local: el modelo servido por Ollama / vLLM
+ANTHROPIC_API_KEY=
+LLM_BASE_URL=                                    # solo local: http://llm:11434/v1
 
 # --- Texto a voz
 TTS=cartesia                                     # local: piper
@@ -194,7 +202,7 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 - [ ] **D1.2** · Migración inicial: tablas `sesiones`, `casos`, `eventos` · tablas creadas al levantar · D1.1
 - [ ] **D1.3** · Número en LiveKit Cloud + regla de despacho al agente · llamar al número dispara una sesión del agente · Prerrequisitos
 - [ ] **D1.4** · `voice_agent` mínimo: atiende y saluda con la voz elegida · se oye el saludo al llamar desde un celular · D1.3
-- [ ] **D1.5** · `providers.py`: STT, LLM y TTS elegidos por variable de entorno · cambiar `TTS_VOZ` cambia la voz sin tocar código · D1.4
+- [ ] **D1.5** · `providers.py`: STT y TTS elegidos por variable de entorno · cambiar `TTS_VOZ` cambia la voz sin tocar código · D1.4
 - [ ] **D1.6** · Probar 2–3 voces y cerrar P4 · voz elegida anotada en `.env.example` · D1.4
 - [ ] **D1.7** · Confirmar que el trámite del número colombiano está iniciado · número de solicitud anotado · —
 
@@ -205,7 +213,7 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 - [ ] **D2.1** · `engine.py`: carga YAML, avanza por etiqueta, cuenta intentos, marca espera activa · `test_engine.py` recorre "sin internet" en todas sus ramas · D1.1
 - [ ] **D2.2** · `flows/sin_internet.yaml` con los textos validados · el test pasa con el YAML real · D2.1
 - [ ] **D2.3** · Puerto `POST /siguiente-paso` + sesión en Postgres · una secuencia de llamadas con curl recorre el flujo · D2.1, D1.2
-- [ ] **D2.4** · `classify.py`: texto → etiqueta con el LLM, salida restringida a las 6 etiquetas · 20 frases de la sección 8 clasificadas bien · D1.5
+- [ ] **D2.4** · Puerto `Clasificador` + adaptador `anthropic.py` (Haiku 5.5, salida restringida a las 6 etiquetas) · 20 frases de la sección 8 clasificadas bien y latencia medida · D1.1
 - [ ] **D2.5** · El agente conecta turno → clasificar → `/siguiente-paso` → dice el texto · "sin internet" completo por teléfono · D2.3, D2.4
 - [ ] **D2.6** · **Prueba con ruido de puesto y acento colombiano** (3 personas distintas) · anotar aciertos/fallos de transcripción y latencia por turno · D2.5
 
@@ -255,7 +263,7 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 - [ ] **T3.0** · Hardware listo: GPU, servidores CPU, red y SIP del operador hacia el datacenter (**no es código; es el camino crítico**)
 - [ ] **T3.1** · LiveKit OSS + SIP en el datacenter, firewall (DMZ) (5 d)
 - [ ] **T3.2** · Faster-Whisper y Piper como servidores de inferencia, conectados por el conector compatible con OpenAI (5 d)
-- [ ] **T3.3** · LLM local (Ollama o vLLM) (2 d)
+- [ ] **T3.3** · LLM local (Ollama o vLLM) + adaptador `openai_compat.py` del clasificador; las 20 frases de D2.4 tienen que dar igual (2 d)
 - [ ] **T3.4** · Set de regresión en modo local contra modo nube: la tasa de aciertos no baja (4 d)
 - [ ] **T3.5** · Corte: grupo chico de operadores y después todos; el número de soporte no cambia (2–3 d)
 
