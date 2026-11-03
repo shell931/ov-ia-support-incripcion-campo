@@ -1,6 +1,6 @@
 # Documentación común
 
-Material que aplica **a las tres propuestas** de arquitectura (mismo producto, distinto despliegue de voz, IA y datos).
+Material que aplica **a las cuatro propuestas** de arquitectura (mismo producto, distinto canal y despliegue).
 
 | Documento | Qué es |
 | --- | --- |
@@ -11,8 +11,9 @@ Material que aplica **a las tres propuestas** de arquitectura (mismo producto, d
 
 ## Arquitecturas (elegir una)
 
-| | P1 — AWS | P2 — on-premise | P3 — ligero |
-| --- | --- | --- | --- |
-| Carpeta | [../propuesta-1/](../propuesta-1/README.md) | [../propuesta-2/](../propuesta-2/README.md) | [../propuesta-3/](../propuesta-3/README.md) |
-| Resumen | LiveKit Cloud, Deepgram, Cartesia | Whisper, Piper, datacenter | Railway, Supabase, Haiku, GPT Live, WhatsApp |
-| Comparación | [../diferencias-propuestas.md](../diferencias-propuestas.md) | | |
+| | P1 | P2 | P3 | P4 |
+| --- | --- | --- | --- | --- |
+| Carpeta | [../propuesta-1/](../propuesta-1/README.md) | [../propuesta-2/](../propuesta-2/README.md) | [../propuesta-3/](../propuesta-3/README.md) | [../propuesta-4/](../propuesta-4/README.md) |
+| Entrada | WhatsApp | WhatsApp | WhatsApp | **Teléfono PSTN** |
+| Resumen | AWS + LiveKit + Deepgram | On-premise | Railway + Supabase | **Como P1, sin WhatsApp** |
+| Comparación | [../diferencias-propuestas.md](../diferencias-propuestas.md) | | | |

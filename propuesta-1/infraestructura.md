@@ -1,6 +1,6 @@
 # Propuesta 1 — Infraestructura del piloto
 
-Qué hay que tener encendido para el asistente de WhatsApp, el agente de voz y la consola de casos de la mesa de ayuda. Comportamiento del agente en [analisis-agente-voz.md](../docs/analisis-agente-voz.md). Alternativa on-premise: [propuesta 2](../propuesta-2/README.md). Comparación: [diferencias-propuestas.md](../diferencias-propuestas.md).
+Qué hay que tener encendido para el asistente de WhatsApp, el agente de voz y la consola de casos de la mesa de ayuda. Comportamiento del agente en [analisis-agente-voz.md](../docs/analisis-agente-voz.md). Alternativas: [propuesta 2](../propuesta-2/README.md) (on-premise), [propuesta 4](../propuesta-4/README.md) (misma nube, **teléfono PSTN**). Comparación: [diferencias-propuestas.md](../diferencias-propuestas.md).
 
 ## Diagrama
 
