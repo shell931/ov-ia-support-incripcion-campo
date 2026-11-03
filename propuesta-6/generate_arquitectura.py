@@ -266,7 +266,7 @@ def diagram():
     out.append(text(hcx, hcy + 130, "docker-compose.yml", 12.5, "600", C["accent"], "middle", family=MONO))
 
     # Puertos: voice-agent → núcleo
-    for k, (label, y) in enumerate((("siguiente_paso()", hcy - 40), ("crear_caso()", hcy + 40))):
+    for k, (label, y) in enumerate((("next_step()", hcy - 40), ("create_case()", hcy + 40))):
         ex = hex_left_x(hcx, hcy, hr, y)
         out.append(path(f"M{bx + bw} {y} L{ex - 4} {y}", C["accent"], 3))
         out.append(rect(ex - 9, y - 9, 18, 18, 4, C["accent"]))
@@ -302,9 +302,9 @@ def diagram():
     steps = [
         "El operador marca el número de soporte.",
         "La telefonía entrega la llamada al voice-agent.",
-        "Voz → texto → sí / no / persona → siguiente_paso().",
+        "Voz → texto → yes / no / human → next_step().",
         "El núcleo devuelve el texto exacto del YAML. El LLM no redacta.",
-        "Si el árbol se agota: crear_caso() con todo lo intentado.",
+        "Si el árbol se agota: create_case() con todo lo intentado.",
         "La consola muestra el caso priorizado a la mesa.",
         "La mesa devuelve la llamada.",
     ]
@@ -321,7 +321,7 @@ def diagram():
         ("SIP_TRUNK", "livekit-cloud", "operador-co"),
         ("LIVEKIT_URL", "*.livekit.cloud", "voz.cliente.local"),
         ("STT", "deepgram", "whisper"),
-        ("CLASIFICADOR", "anthropic", "openai-compat"),
+        ("CLASSIFIER", "anthropic", "openai-compat"),
         ("TTS", "cartesia", "piper"),
     ]
     for k, (var, a, b) in enumerate(envs):

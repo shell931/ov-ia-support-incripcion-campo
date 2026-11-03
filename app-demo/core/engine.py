@@ -1,11 +1,11 @@
-"""Motor de flujos guiados.
+"""Guided-flow engine.
 
-Lee los árboles YAML y decide el siguiente paso a partir de una etiqueta
-(sí / no / no_entendí / persona / esperar). Es determinista: el texto que
-se le dice al operador sale siempre del YAML, nunca de un LLM.
+Loads the YAML decision trees and picks the next step from a label
+(yes / no / unclear / human / wait). It is deterministic: whatever the
+operator hears comes from the YAML, never from an LLM.
 
-Regla de arquitectura: este módulo no importa nada de LiveKit ni de ningún
-proveedor. Es el corazón del núcleo hexagonal.
+Architecture rule: this module imports nothing from LiveKit or any vendor SDK.
+It is the heart of the hexagonal core.
 """
 
 from __future__ import annotations
@@ -16,231 +16,221 @@ from typing import Any
 
 import yaml
 
-ETIQUETAS = frozenset({"inicio", "si", "no", "no_entendi", "persona", "esperar"})
+LABELS = frozenset({"start", "yes", "no", "unclear", "human", "wait"})
 
-# Respaldo por teclado cuando el reconocimiento de voz falla.
-DTMF_A_ETIQUETA = {"1": "si", "2": "no", "0": "persona"}
+# Keypad fallback when speech recognition fails.
+DTMF_TO_LABEL = {"1": "yes", "2": "no", "0": "human"}
 
 FLOWS_DIR = Path(__file__).parent / "flows"
 
 
-class FlujoInvalido(ValueError):
-    """El YAML de un flujo no cumple el contrato."""
+class InvalidFlow(ValueError):
+    """A flow YAML does not satisfy the contract."""
 
 
-class TransicionInvalida(ValueError):
-    """Se pidió avanzar con una etiqueta que no aplica al estado actual."""
+class InvalidTransition(ValueError):
+    """Tried to advance with a label that does not apply to the current state."""
 
 
 @dataclass(frozen=True)
-class Paso:
+class Step:
     id: str
-    texto: str
-    si: str | None = None
-    no: str | None = None
-    espera_activa: bool = False
-    pide_dtmf: bool = False
-    fin: bool = False
-    accion: str | None = None  # "crear_caso"
-    destino: str | None = None  # "mesa" | "direccion_censo" | "logistica"
-    prioridad: str | None = None  # "normal" | "alta"
+    text: str
+    on_yes: str | None = None
+    on_no: str | None = None
+    active_wait: bool = False  # silence does not end the turn; agent checks back every 20–30 s
+    asks_dtmf: bool = False  # input comes from the keypad (e.g. ID number)
+    end: bool = False
+    action: str | None = None  # "create_case"
+    destination: str | None = None  # "help_desk" | "census_office" | "logistics"
+    priority: str | None = None  # "normal" | "high"
 
 
 @dataclass(frozen=True)
-class Flujo:
+class Flow:
     id: str
-    descripcion: str
-    inicio: str
-    escalar: str
-    max_intentos_no_entendi: int
-    pasos: dict[str, Paso]
+    description: str
+    start: str
+    escalate: str
+    max_unclear_attempts: int
+    steps: dict[str, Step]
 
 
 @dataclass(frozen=True)
-class Estado:
-    """Estado de una sesión dentro de un flujo. Inmutable: cada avance devuelve uno nuevo."""
+class State:
+    """Session state inside a flow. Immutable: every advance returns a new one."""
 
-    flujo_id: str
-    paso_id: str
-    intentos_no_entendi: int = 0
-    historial: tuple[str, ...] = field(default_factory=tuple)
+    flow_id: str
+    step_id: str
+    unclear_attempts: int = 0
+    history: tuple[str, ...] = field(default_factory=tuple)
 
-    def a_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            "flujo_id": self.flujo_id,
-            "paso_id": self.paso_id,
-            "intentos_no_entendi": self.intentos_no_entendi,
-            "historial": list(self.historial),
+            "flow_id": self.flow_id,
+            "step_id": self.step_id,
+            "unclear_attempts": self.unclear_attempts,
+            "history": list(self.history),
         }
 
     @classmethod
-    def desde_dict(cls, d: dict[str, Any]) -> "Estado":
+    def from_dict(cls, d: dict[str, Any]) -> "State":
         return cls(
-            flujo_id=d["flujo_id"],
-            paso_id=d["paso_id"],
-            intentos_no_entendi=d.get("intentos_no_entendi", 0),
-            historial=tuple(d.get("historial", ())),
+            flow_id=d["flow_id"],
+            step_id=d["step_id"],
+            unclear_attempts=d.get("unclear_attempts", 0),
+            history=tuple(d.get("history", ())),
         )
 
 
 @dataclass(frozen=True)
-class Resultado:
-    estado: Estado
-    paso: Paso
-    modo_teclado: bool  # el agente debe ofrecer "1 sí, 2 no, 0 persona"
-    crear_caso: bool  # el agente debe llamar a crear_caso()
+class Result:
+    state: State
+    step: Step
+    keypad_mode: bool  # agent must offer "1 yes, 2 no, 0 human"
+    create_case: bool  # agent must call create_case()
 
     @property
-    def fin(self) -> bool:
-        return self.paso.fin
+    def end(self) -> bool:
+        return self.step.end
 
 
-# --------------------------------------------------------------------------- carga
+# --------------------------------------------------------------------------- loading
 
 
-def _paso_desde_dict(d: dict[str, Any], flujo_id: str) -> Paso:
-    # YAML 1.1 ("problema de Noruega"): la clave `no:` sin comillas se lee como el
-    # booleano False. Se acepta igual para que procesos escriba el YAML natural.
-    no = d.get("no", d.get(False))
+def _step_from_dict(d: dict[str, Any], flow_id: str) -> Step:
     try:
-        return Paso(
+        return Step(
             id=d["id"],
-            texto=str(d["texto"]).strip(),
-            si=d.get("si"),
-            no=no,
-            espera_activa=bool(d.get("espera_activa", False)),
-            pide_dtmf=bool(d.get("pide_dtmf", False)),
-            fin=bool(d.get("fin", False)),
-            accion=d.get("accion"),
-            destino=d.get("destino"),
-            prioridad=d.get("prioridad"),
+            text=str(d["text"]).strip(),
+            on_yes=d.get("on_yes"),
+            on_no=d.get("on_no"),
+            active_wait=bool(d.get("active_wait", False)),
+            asks_dtmf=bool(d.get("asks_dtmf", False)),
+            end=bool(d.get("end", False)),
+            action=d.get("action"),
+            destination=d.get("destination"),
+            priority=d.get("priority"),
         )
     except KeyError as e:
-        raise FlujoInvalido(f"{flujo_id}: paso sin campo obligatorio {e}") from e
+        raise InvalidFlow(f"{flow_id}: step missing required field {e}") from e
 
 
-def _validar(flujo: Flujo) -> None:
-    ids = flujo.pasos
-    if flujo.inicio not in ids:
-        raise FlujoInvalido(f"{flujo.id}: el paso de inicio '{flujo.inicio}' no existe")
-    if flujo.escalar not in ids:
-        raise FlujoInvalido(f"{flujo.id}: el paso de escalamiento '{flujo.escalar}' no existe")
-    if flujo.max_intentos_no_entendi < 1:
-        raise FlujoInvalido(f"{flujo.id}: max_intentos_no_entendi debe ser >= 1")
-    for paso in ids.values():
-        if not paso.texto:
-            raise FlujoInvalido(f"{flujo.id}/{paso.id}: texto vacío")
-        if paso.fin:
-            if paso.si or paso.no:
-                raise FlujoInvalido(f"{flujo.id}/{paso.id}: un paso final no tiene transiciones")
+def _validate(flow: Flow) -> None:
+    steps = flow.steps
+    if flow.start not in steps:
+        raise InvalidFlow(f"{flow.id}: start step '{flow.start}' does not exist")
+    if flow.escalate not in steps:
+        raise InvalidFlow(f"{flow.id}: escalate step '{flow.escalate}' does not exist")
+    if flow.max_unclear_attempts < 1:
+        raise InvalidFlow(f"{flow.id}: max_unclear_attempts must be >= 1")
+    for step in steps.values():
+        if not step.text:
+            raise InvalidFlow(f"{flow.id}/{step.id}: empty text")
+        if step.end:
+            if step.on_yes or step.on_no:
+                raise InvalidFlow(f"{flow.id}/{step.id}: an end step has no transitions")
             continue
-        if not paso.si or not paso.no:
-            raise FlujoInvalido(f"{flujo.id}/{paso.id}: un paso intermedio necesita 'si' y 'no'")
-        for destino in (paso.si, paso.no):
-            if destino not in ids:
-                raise FlujoInvalido(f"{flujo.id}/{paso.id}: apunta a '{destino}', que no existe")
-        if paso.accion is not None:
-            raise FlujoInvalido(f"{flujo.id}/{paso.id}: solo los pasos finales llevan acción")
-    if not ids[flujo.escalar].fin or ids[flujo.escalar].accion != "crear_caso":
-        raise FlujoInvalido(f"{flujo.id}: el paso de escalamiento debe ser final y crear caso")
+        if not step.on_yes or not step.on_no:
+            raise InvalidFlow(f"{flow.id}/{step.id}: a non-end step needs 'on_yes' and 'on_no'")
+        for target in (step.on_yes, step.on_no):
+            if target not in steps:
+                raise InvalidFlow(f"{flow.id}/{step.id}: points to '{target}', which does not exist")
+        if step.action is not None:
+            raise InvalidFlow(f"{flow.id}/{step.id}: only end steps carry an action")
+    if not steps[flow.escalate].end or steps[flow.escalate].action != "create_case":
+        raise InvalidFlow(f"{flow.id}: the escalate step must be an end step that creates a case")
 
 
-def flujo_desde_dict(d: dict[str, Any]) -> Flujo:
-    flujo_id = d.get("id") or "<sin id>"
-    pasos_lista = d.get("pasos") or []
-    if not pasos_lista:
-        raise FlujoInvalido(f"{flujo_id}: no tiene pasos")
-    pasos: dict[str, Paso] = {}
-    for raw in pasos_lista:
-        paso = _paso_desde_dict(raw, flujo_id)
-        if paso.id in pasos:
-            raise FlujoInvalido(f"{flujo_id}: id de paso repetido '{paso.id}'")
-        pasos[paso.id] = paso
-    flujo = Flujo(
-        id=flujo_id,
-        descripcion=str(d.get("descripcion", "")).strip(),
-        inicio=d.get("inicio") or pasos_lista[0]["id"],
-        escalar=d.get("escalar", "escalar"),
-        max_intentos_no_entendi=int(d.get("max_intentos_no_entendi", 2)),
-        pasos=pasos,
+def flow_from_dict(d: dict[str, Any]) -> Flow:
+    flow_id = d.get("id") or "<no id>"
+    raw_steps = d.get("steps") or []
+    if not raw_steps:
+        raise InvalidFlow(f"{flow_id}: has no steps")
+    steps: dict[str, Step] = {}
+    for raw in raw_steps:
+        step = _step_from_dict(raw, flow_id)
+        if step.id in steps:
+            raise InvalidFlow(f"{flow_id}: duplicate step id '{step.id}'")
+        steps[step.id] = step
+    flow = Flow(
+        id=flow_id,
+        description=str(d.get("description", "")).strip(),
+        start=d.get("start") or raw_steps[0]["id"],
+        escalate=d.get("escalate", "escalate"),
+        max_unclear_attempts=int(d.get("max_unclear_attempts", 2)),
+        steps=steps,
     )
-    _validar(flujo)
-    return flujo
+    _validate(flow)
+    return flow
 
 
-def cargar_flujos(directorio: Path = FLOWS_DIR) -> dict[str, Flujo]:
-    flujos: dict[str, Flujo] = {}
-    for archivo in sorted(directorio.glob("*.yaml")):
-        flujo = flujo_desde_dict(yaml.safe_load(archivo.read_text(encoding="utf-8")))
-        if flujo.id in flujos:
-            raise FlujoInvalido(f"flujo repetido '{flujo.id}' en {archivo.name}")
-        flujos[flujo.id] = flujo
-    if not flujos:
-        raise FlujoInvalido(f"no hay flujos en {directorio}")
-    return flujos
+def load_flows(directory: Path = FLOWS_DIR) -> dict[str, Flow]:
+    flows: dict[str, Flow] = {}
+    for path in sorted(directory.glob("*.yaml")):
+        flow = flow_from_dict(yaml.safe_load(path.read_text(encoding="utf-8")))
+        if flow.id in flows:
+            raise InvalidFlow(f"duplicate flow '{flow.id}' in {path.name}")
+        flows[flow.id] = flow
+    if not flows:
+        raise InvalidFlow(f"no flows in {directory}")
+    return flows
 
 
-# --------------------------------------------------------------------------- motor
+# --------------------------------------------------------------------------- engine
 
 
-def etiqueta_desde_dtmf(tecla: str) -> str:
-    """Traduce una tecla del respaldo por teclado a etiqueta. Otra tecla = no entendí."""
-    return DTMF_A_ETIQUETA.get(tecla.strip(), "no_entendi")
+def label_from_dtmf(key: str) -> str:
+    """Map a keypad fallback key to a label. Any other key means unclear."""
+    return DTMF_TO_LABEL.get(key.strip(), "unclear")
 
 
-class Motor:
-    def __init__(self, flujos: dict[str, Flujo]):
-        self._flujos = flujos
+class Engine:
+    def __init__(self, flows: dict[str, Flow]):
+        self._flows = flows
 
     @property
-    def flujos(self) -> dict[str, Flujo]:
-        return self._flujos
+    def flows(self) -> dict[str, Flow]:
+        return self._flows
 
-    def _flujo(self, flujo_id: str) -> Flujo:
+    def _flow(self, flow_id: str) -> Flow:
         try:
-            return self._flujos[flujo_id]
+            return self._flows[flow_id]
         except KeyError as e:
-            raise TransicionInvalida(f"flujo desconocido '{flujo_id}'") from e
+            raise InvalidTransition(f"unknown flow '{flow_id}'") from e
 
-    def _resultado(self, flujo: Flujo, estado: Estado, modo_teclado: bool = False) -> Resultado:
-        paso = flujo.pasos[estado.paso_id]
-        return Resultado(
-            estado=estado,
-            paso=paso,
-            modo_teclado=modo_teclado,
-            crear_caso=paso.accion == "crear_caso",
-        )
+    def _result(self, flow: Flow, state: State, keypad_mode: bool = False) -> Result:
+        step = flow.steps[state.step_id]
+        return Result(state=state, step=step, keypad_mode=keypad_mode, create_case=step.action == "create_case")
 
-    def iniciar(self, flujo_id: str) -> Resultado:
-        flujo = self._flujo(flujo_id)
-        estado = Estado(flujo_id=flujo.id, paso_id=flujo.inicio, historial=(flujo.inicio,))
-        return self._resultado(flujo, estado)
+    def start(self, flow_id: str) -> Result:
+        flow = self._flow(flow_id)
+        state = State(flow_id=flow.id, step_id=flow.start, history=(flow.start,))
+        return self._result(flow, state)
 
-    def actual(self, estado: Estado) -> Resultado:
-        return self._resultado(self._flujo(estado.flujo_id), estado)
+    def current(self, state: State) -> Result:
+        return self._result(self._flow(state.flow_id), state)
 
-    def avanzar(self, estado: Estado, etiqueta: str) -> Resultado:
-        if etiqueta not in ETIQUETAS or etiqueta == "inicio":
-            raise TransicionInvalida(f"etiqueta inválida '{etiqueta}'")
-        flujo = self._flujo(estado.flujo_id)
-        paso = flujo.pasos[estado.paso_id]
-        if paso.fin:
-            raise TransicionInvalida(f"el flujo ya terminó en '{paso.id}'")
+    def advance(self, state: State, label: str) -> Result:
+        if label not in LABELS or label == "start":
+            raise InvalidTransition(f"invalid label '{label}'")
+        flow = self._flow(state.flow_id)
+        step = flow.steps[state.step_id]
+        if step.end:
+            raise InvalidTransition(f"flow already ended at '{step.id}'")
 
-        if etiqueta == "esperar":
-            # Espera activa: el operador está haciendo algo; no cuenta como fallo.
-            return self._resultado(flujo, estado)
+        if label == "wait":
+            # Active wait: the operator is doing something; not a failure.
+            return self._result(flow, state)
 
-        if etiqueta == "no_entendi":
-            intentos = estado.intentos_no_entendi + 1
-            nuevo = replace(estado, intentos_no_entendi=intentos)
-            return self._resultado(flujo, nuevo, modo_teclado=intentos >= flujo.max_intentos_no_entendi)
+        if label == "unclear":
+            attempts = state.unclear_attempts + 1
+            new_state = replace(state, unclear_attempts=attempts)
+            return self._result(flow, new_state, keypad_mode=attempts >= flow.max_unclear_attempts)
 
-        destino = flujo.escalar if etiqueta == "persona" else (paso.si if etiqueta == "si" else paso.no)
-        nuevo = Estado(
-            flujo_id=flujo.id,
-            paso_id=destino,
-            intentos_no_entendi=0,
-            historial=estado.historial + (destino,),
-        )
-        return self._resultado(flujo, nuevo)
+        if label == "human":
+            target = flow.escalate
+        else:
+            target = step.on_yes if label == "yes" else step.on_no
+        new_state = State(flow_id=flow.id, step_id=target, unclear_attempts=0, history=state.history + (target,))
+        return self._result(flow, new_state)

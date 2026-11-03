@@ -1,0 +1,67 @@
+# Flow: first login to the app (user, password and fingerprint enrollment).
+# Source: fuente/incripcion-campo.pdf (Aplicación). Spoken texts PENDING review by the process team.
+# The ID number (cédula) is ALWAYS entered on the keypad (DTMF) and masked before storage.
+id: first_login
+description: First login to the app (user, password and fingerprint).
+start: ask_id_number
+escalate: escalate
+max_unclear_attempts: 2
+
+steps:
+  - id: ask_id_number
+    text: "Marque su número de cédula en el teclado del teléfono y al final la tecla numeral."
+    asks_dtmf: true
+    on_yes: credentials_received
+    on_no: escalate
+
+  - id: credentials_received
+    text: "¿Le llegaron a su correo electrónico el usuario y la contraseña?"
+    on_yes: enter_credentials
+    on_no: missing_credentials
+
+  - id: enter_credentials
+    text: "En el campo Usuario escriba su número de cédula, y en Contraseña la que le llegó al correo. ¿Pudo entrar?"
+    on_yes: enroll_fingerprint
+    on_no: retry_credentials
+
+  - id: retry_credentials
+    text: "Revise que la cédula no tenga puntos ni espacios y que la contraseña esté exacta, con mayúsculas y minúsculas. Intente otra vez. ¿Pudo entrar?"
+    on_yes: enroll_fingerprint
+    on_no: escalate
+
+  - id: enroll_fingerprint
+    text: "Ahora el sistema le pide enrolar sus huellas. Ponga los dedos que indica la pantalla. ¿Reconoció la huella?"
+    active_wait: true
+    on_yes: resolved
+    on_no: retry_fingerprint
+
+  - id: retry_fingerprint
+    text: "Limpie el dedo y el lector, y vuelva a intentarlo con el dedo exacto que muestra la pantalla. ¿La reconoció?"
+    active_wait: true
+    on_yes: resolved
+    on_no: fingerprint_rejected
+
+  - id: resolved
+    text: "Perfecto, ya puede trabajar. Gracias por llamar."
+    end: true
+
+  - id: missing_credentials
+    text: "Voy a pedir a la Dirección de Censo que le reenvíen el usuario y la contraseña. Lo van a llamar a este número."
+    end: true
+    action: create_case
+    destination: census_office
+    priority: normal
+
+  - id: fingerprint_rejected
+    text: "La huella no se pudo reconocer. Dejo un caso prioritario para la Dirección de Censo; lo van a llamar a este número."
+    end: true
+    action: create_case
+    destination: census_office
+    priority: high
+
+  - id: escalate
+    text: "No pudimos resolverlo por aquí. Voy a dejar un caso para la mesa de ayuda; lo van a llamar a este número."
+    end: true
+    action: create_case
+    destination: help_desk
+    priority: normal

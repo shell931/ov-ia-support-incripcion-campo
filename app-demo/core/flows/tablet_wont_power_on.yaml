@@ -1,0 +1,51 @@
+# Flow: the tablet is damaged, won't power on, or is not at the station.
+# Source: fuente/incripcion-campo.pdf (Tableta). Spoken texts PENDING review by the process team.
+id: tablet_wont_power_on
+description: The tablet won't power on, is damaged, or is not at the station.
+start: tablet_at_station
+escalate: escalate
+max_unclear_attempts: 2
+
+steps:
+  - id: tablet_at_station
+    text: "¿Tiene la tableta con usted en el puesto?"
+    on_yes: wiggle_cable
+    on_no: tablet_missing
+
+  - id: wiggle_cable
+    text: "Mueva el cable en el puerto de carga y mire si aparece el ícono de carga. ¿Aparece?"
+    on_yes: resolved
+    on_no: usb_c_cable
+
+  - id: usb_c_cable
+    text: "Conecte la tableta con un cable tipo C. ¿Ahora carga?"
+    on_yes: resolved
+    on_no: other_outlet
+
+  - id: other_outlet
+    text: "Pruebe en otra toma de corriente. ¿Ahora carga?"
+    on_yes: resolved
+    on_no: other_adapter
+
+  - id: other_adapter
+    text: "Pruebe con otro adaptador de energía. ¿Ahora carga?"
+    on_yes: resolved
+    on_no: escalate
+
+  - id: resolved
+    text: "Perfecto, la tableta está cargando. Déjela conectada unos minutos antes de usarla. Gracias por llamar."
+    end: true
+
+  - id: tablet_missing
+    text: "Entendido. Voy a registrar que no hay tableta en su puesto y aviso a logística para la reposición. Lo van a llamar a este número."
+    end: true
+    action: create_case
+    destination: logistics
+    priority: high
+
+  - id: escalate
+    text: "La tableta no responde. Voy a registrar la novedad del equipo para su reposición; lo van a llamar a este número."
+    end: true
+    action: create_case
+    destination: logistics
+    priority: high

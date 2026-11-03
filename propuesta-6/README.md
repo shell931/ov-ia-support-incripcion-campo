@@ -39,7 +39,7 @@ Se respetan desde el **día 1 de la demo**. Si alguna se rompe, la mudanza vuelv
 
 | # | Regla | Qué evita |
 | --- | --- | --- |
-| 1 | El **núcleo** (motor YAML, sesión, casos, reglas de escalamiento) **no conoce a LiveKit**. Expone `siguiente_paso()` y `crear_caso()`; el `voice-agent` es un adaptador. | Que cambiar el proveedor de voz toque la lógica de negocio. |
+| 1 | El **núcleo** (motor YAML, sesión, casos, reglas de escalamiento) **no conoce a LiveKit**. Expone `next_step()` y `create_case()`; el `voice-agent` es un adaptador. | Que cambiar el proveedor de voz toque la lógica de negocio. |
 | 2 | Transcripción, LLM y síntesis de voz se eligen **por variable de entorno**. Se prefieren proveedores con API compatible con OpenAI: así entra un servidor local cambiando la dirección. | Reescribir el agente para usar Whisper, Piper o un LLM local. |
 | 3 | **Postgres plano.** Nada de Auth, Storage ni RLS de un proveedor amarrados al código. | Mudar servicios propietarios además de la base. |
 | 4 | **Todo en `docker-compose.yml`** desde el primer día: núcleo, base, consola y agente. | "En mi máquina anda": el mismo archivo corre en la notebook, en una VM y en el datacenter. |
@@ -54,7 +54,7 @@ Se respetan desde el **día 1 de la demo**. Si alguna se rompe, la mudanza vuelv
 | Telefonía | Número de LiveKit Cloud | Troncal SIP de un operador colombiano | `SIP_TRUNK` |
 | Servidor de voz | LiveKit Cloud | LiveKit OSS en el datacenter | `LIVEKIT_URL` |
 | Voz → texto | Deepgram | Faster-Whisper (GPU) | `STT` |
-| Clasificación | Claude Haiku 5.5 (SDK de Anthropic) | LLM local (Ollama o vLLM, CPU) | `CLASIFICADOR` + `LLM_BASE_URL` |
+| Clasificación | Claude Haiku 5.5 (SDK de Anthropic) | LLM local (Ollama o vLLM, CPU) | `CLASSIFIER` + `LLM_BASE_URL` |
 | Texto → voz | Cartesia (+ pasos pregrabados) | Piper (+ pasos pregrabados) | `TTS` |
 | Núcleo, Postgres, consola | Docker en una VM | **El mismo** Docker en el datacenter | — |
 
@@ -64,9 +64,9 @@ Cuidado: LiveKit no tiene conectores oficiales de Whisper ni de Piper. Se instal
 
 1. El operador **marca** el número de soporte.
 2. La telefonía entrega la llamada por **SIP** al servidor LiveKit, que despacha un `voice-agent`.
-3. El agente pasa la voz a texto y el LLM etiqueta: `sí` / `no` / `no_entendí` / `persona`. Si el reconocimiento falla dos veces: teclado (`1` sí, `2` no, `0` persona).
-4. El agente llama a `siguiente_paso(sesión, etiqueta)`. El **núcleo** devuelve el id y el texto exacto del paso del YAML. **El LLM no redacta el procedimiento.**
-5. Si el árbol se agota o el operador pide una persona: `crear_caso()` con todo lo intentado, y el agente dicta el número de caso.
+3. El agente pasa la voz a texto y el LLM etiqueta: `yes` / `no` / `unclear` / `human`. Si el reconocimiento falla dos veces: teclado (`1` sí, `2` no, `0` persona).
+4. El agente llama a `next_step(session, label)`. El **núcleo** devuelve el id y el texto exacto del paso del YAML. **El LLM no redacta el procedimiento.**
+5. Si el árbol se agota o el operador pide una persona: `create_case()` con todo lo intentado, y el agente dicta el número de caso.
 6. La **consola** muestra el caso priorizado a la mesa.
 7. La mesa **devuelve la llamada**. Sin transferencia en vivo.
 

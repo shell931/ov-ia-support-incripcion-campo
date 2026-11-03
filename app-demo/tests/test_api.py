@@ -1,139 +1,138 @@
-"""Puerto POST /siguiente-paso, con persistencia en memoria (sin Postgres)."""
+"""POST /next-step port, with in-memory persistence (no Postgres)."""
 
 from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
 
-from core.api import app, obtener_sesiones
-from core.masking import enmascarar_cedula, normalizar_cedula
-from core.sesiones import SesionesEnMemoria
+from core.api import app, get_session_store
+from core.masking import mask_id_number, normalize_id_number
+from core.sessions import InMemorySessionStore
 
 
 @pytest.fixture
-def sesiones() -> SesionesEnMemoria:
-    return SesionesEnMemoria()
+def store() -> InMemorySessionStore:
+    return InMemorySessionStore()
 
 
 @pytest.fixture
-def cliente(sesiones: SesionesEnMemoria):
-    app.dependency_overrides[obtener_sesiones] = lambda: sesiones
+def client(store: InMemorySessionStore):
+    app.dependency_overrides[get_session_store] = lambda: store
     yield TestClient(app)
     app.dependency_overrides.clear()
 
 
-def turno(cliente, etiqueta, sid="s1", **extra):
-    r = cliente.post("/siguiente-paso", json={"sesion_id": sid, "telefono": "+573001112233", "etiqueta": etiqueta, **extra})
-    return r
+def turn(client, label, sid="s1", **extra):
+    return client.post("/next-step", json={"session_id": sid, "phone": "+573001112233", "label": label, **extra})
 
 
-def test_inicio_devuelve_primer_paso(cliente):
-    r = turno(cliente, "inicio", flujo="sin_internet")
+def test_start_returns_first_step(client):
+    r = turn(client, "start", flow="no_internet")
     assert r.status_code == 200
     body = r.json()
-    assert body["paso_id"] == "datos_moviles"
-    assert "datos móviles" in body["texto"]
-    assert body["pasos_intentados"] == ["datos_moviles"]
+    assert body["step_id"] == "mobile_data"
+    assert "datos móviles" in body["text"]
+    assert body["steps_tried"] == ["mobile_data"]
 
 
-def test_recorrido_completo_por_http_hasta_escalar(cliente):
-    turno(cliente, "inicio", flujo="sin_internet")
-    for e in ["si", "no"]:
-        assert turno(cliente, e).status_code == 200
-    body = turno(cliente, "no").json()
-    assert body["paso_id"] == "escalar"
-    assert body["fin"] and body["crear_caso"]
-    assert body["destino"] == "mesa"
-    assert body["pasos_intentados"] == ["datos_moviles", "modo_avion", "reiniciar", "escalar"]
+def test_full_walk_over_http_until_escalation(client):
+    turn(client, "start", flow="no_internet")
+    for label in ["yes", "no"]:
+        assert turn(client, label).status_code == 200
+    body = turn(client, "no").json()
+    assert body["step_id"] == "escalate"
+    assert body["end"] and body["create_case"]
+    assert body["destination"] == "help_desk"
+    assert body["steps_tried"] == ["mobile_data", "airplane_mode", "restart", "escalate"]
 
 
-def test_inicio_sin_flujo_es_422(cliente):
-    assert turno(cliente, "inicio").status_code == 422
+def test_start_without_flow_is_422(client):
+    assert turn(client, "start").status_code == 422
 
 
-def test_flujo_desconocido_es_422(cliente):
-    assert turno(cliente, "inicio", flujo="no_existe").status_code == 422
+def test_unknown_flow_is_422(client):
+    assert turn(client, "start", flow="does_not_exist").status_code == 422
 
 
-def test_etiqueta_fuera_del_contrato_es_422(cliente):
-    turno(cliente, "inicio", flujo="sin_internet")
-    assert turno(cliente, "tal_vez").status_code == 422
+def test_label_outside_contract_is_422(client):
+    turn(client, "start", flow="no_internet")
+    assert turn(client, "maybe").status_code == 422
 
 
-def test_sesion_inexistente_es_404(cliente):
-    assert turno(cliente, "si", sid="nadie").status_code == 404
+def test_unknown_session_is_404(client):
+    assert turn(client, "yes", sid="nobody").status_code == 404
 
 
-def test_avanzar_flujo_terminado_es_409(cliente):
-    turno(cliente, "inicio", flujo="sin_internet")
-    turno(cliente, "si")
-    turno(cliente, "si")  # resuelto
-    assert turno(cliente, "si").status_code == 409
+def test_advancing_ended_flow_is_409(client):
+    turn(client, "start", flow="no_internet")
+    turn(client, "yes")
+    turn(client, "yes")  # resolved
+    assert turn(client, "yes").status_code == 409
 
 
-def test_dos_no_entendi_activan_teclado(cliente):
-    turno(cliente, "inicio", flujo="sin_internet")
-    assert turno(cliente, "no_entendi").json()["modo_teclado"] is False
-    assert turno(cliente, "no_entendi").json()["modo_teclado"] is True
+def test_two_unclear_turn_on_keypad_mode(client):
+    turn(client, "start", flow="no_internet")
+    assert turn(client, "unclear").json()["keypad_mode"] is False
+    assert turn(client, "unclear").json()["keypad_mode"] is True
 
 
-def test_teclado_como_respaldo(cliente):
-    turno(cliente, "inicio", flujo="sin_internet")
-    body = turno(cliente, "no_entendi", dtmf="1").json()  # 1 = sí
-    assert body["paso_id"] == "modo_avion"
+def test_keypad_fallback(client):
+    turn(client, "start", flow="no_internet")
+    assert turn(client, "unclear", dtmf="1").json()["step_id"] == "airplane_mode"  # 1 = yes
 
 
-def test_cedula_valida_avanza_y_se_guarda_enmascarada(cliente, sesiones):
-    turno(cliente, "inicio", flujo="primer_logueo")
-    body = turno(cliente, "no_entendi", dtmf="1012345678#").json()
-    assert body["paso_id"] == "correo_recibido"
-    assert sesiones.sesiones["s1"].cedula_enmascarada == "*******678"
+def test_valid_id_number_advances_and_is_stored_masked(client, store):
+    turn(client, "start", flow="first_login")
+    body = turn(client, "unclear", dtmf="1012345678#").json()
+    assert body["step_id"] == "credentials_received"
+    assert store.sessions["s1"].masked_id_number == "*******678"
 
 
-def test_cedula_nunca_aparece_completa_en_eventos(cliente, sesiones):
-    turno(cliente, "inicio", flujo="primer_logueo")
-    turno(cliente, "no_entendi", dtmf="1012345678#")
-    assert "1012345678" not in repr(sesiones.eventos)
+def test_id_number_never_appears_in_full_in_events(client, store):
+    turn(client, "start", flow="first_login")
+    turn(client, "unclear", dtmf="1012345678#")
+    assert "1012345678" not in repr(store.events)
 
 
-def test_cedula_invalida_cuenta_como_no_entendi(cliente):
-    turno(cliente, "inicio", flujo="primer_logueo")
-    body = turno(cliente, "no_entendi", dtmf="12#").json()
-    assert body["paso_id"] == "pedir_cedula"
+def test_invalid_id_number_counts_as_unclear(client):
+    turn(client, "start", flow="first_login")
+    assert turn(client, "unclear", dtmf="12#").json()["step_id"] == "ask_id_number"
 
 
-def test_si_hablado_no_reemplaza_la_cedula(cliente):
-    turno(cliente, "inicio", flujo="primer_logueo")
-    assert turno(cliente, "si").json()["paso_id"] == "pedir_cedula"
+def test_spoken_yes_does_not_replace_id_number(client):
+    turn(client, "start", flow="first_login")
+    assert turn(client, "yes").json()["step_id"] == "ask_id_number"
 
 
-def test_persona_escala_desde_cualquier_punto(cliente):
-    turno(cliente, "inicio", flujo="tableta_no_enciende")
-    body = turno(cliente, "persona").json()
-    assert body["crear_caso"] and body["destino"] == "logistica"
+def test_human_escalates_from_anywhere(client):
+    turn(client, "start", flow="tablet_wont_power_on")
+    body = turn(client, "human").json()
+    assert body["create_case"] and body["destination"] == "logistics"
 
 
-def test_sesiones_independientes(cliente):
-    turno(cliente, "inicio", sid="a", flujo="sin_internet")
-    turno(cliente, "inicio", sid="b", flujo="primer_logueo")
-    assert turno(cliente, "si", sid="a").json()["paso_id"] == "modo_avion"
+def test_sessions_are_independent(client):
+    turn(client, "start", sid="a", flow="no_internet")
+    turn(client, "start", sid="b", flow="first_login")
+    assert turn(client, "yes", sid="a").json()["step_id"] == "airplane_mode"
 
 
-def test_cada_turno_queda_registrado(cliente, sesiones):
-    turno(cliente, "inicio", flujo="sin_internet")
-    turno(cliente, "si")
-    tipos = [t for _, t, _ in sesiones.eventos]
-    assert tipos == ["inicio", "turno"]
+def test_every_turn_is_logged(client, store):
+    turn(client, "start", flow="no_internet")
+    turn(client, "yes")
+    assert [t for _, t, _ in store.events] == ["start", "turn"]
 
 
 # --------------------------------------------------------------------------- masking
 
 
-@pytest.mark.parametrize("entrada, esperado", [("1012345678#", "1012345678"), ("123456", "123456"), ("12#", None), ("", None), ("12345678901", None)])
-def test_normalizar_cedula(entrada, esperado):
-    assert normalizar_cedula(entrada) == esperado
+@pytest.mark.parametrize(
+    "raw, expected",
+    [("1012345678#", "1012345678"), ("123456", "123456"), ("12#", None), ("", None), ("12345678901", None)],
+)
+def test_normalize_id_number(raw, expected):
+    assert normalize_id_number(raw) == expected
 
 
-@pytest.mark.parametrize("entrada, esperado", [("1012345678", "*******678"), ("123", "***"), ("", "")])
-def test_enmascarar_cedula(entrada, esperado):
-    assert enmascarar_cedula(entrada) == esperado
+@pytest.mark.parametrize("raw, expected", [("1012345678", "*******678"), ("123", "***"), ("", "")])
+def test_mask_id_number(raw, expected):
+    assert mask_id_number(raw) == expected

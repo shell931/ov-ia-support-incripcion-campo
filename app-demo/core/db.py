@@ -1,4 +1,4 @@
-"""Acceso a Postgres. Postgres plano: nada de servicios propietarios de un proveedor."""
+"""Postgres access. Plain Postgres: no vendor-specific services."""
 
 from __future__ import annotations
 
@@ -10,18 +10,18 @@ import psycopg
 def database_url() -> str:
     url = os.environ.get("DATABASE_URL")
     if not url:
-        raise RuntimeError("Falta DATABASE_URL")
+        raise RuntimeError("DATABASE_URL is not set")
     return url
 
 
-def conectar() -> psycopg.Connection:
+def connect() -> psycopg.Connection:
     return psycopg.connect(database_url(), connect_timeout=3)
 
 
-def salud() -> bool:
+def is_healthy() -> bool:
     try:
-        with conectar() as conn:
+        with connect() as conn:
             conn.execute("select 1")
         return True
-    except psycopg.Error:
+    except (psycopg.Error, RuntimeError):
         return False

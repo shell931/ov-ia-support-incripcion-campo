@@ -10,7 +10,7 @@ El objetivo es mostrar los tres casos por llamada sin fallar delante del cliente
 | ---: | --- |
 | **1** | Cuentas (LiveKit Cloud, Deepgram, LLM, Cartesia). `docker-compose.yml` con núcleo + Postgres en una VM. Número activo y una llamada que llega al `voice-agent`. **Arranca el trámite del número colombiano.** |
 | **2** | Motor YAML y flujo **"sin internet"** completo por voz, con sesión por número. **Prueba con ruido de fondo y acento colombiano**: si la transcripción falla, hay tiempo de cambiar. |
-| **3** | Flujos **"primer logueo"** y **"tableta no enciende"**. Cédula por teclado, espera activa y `crear_caso()` con número de caso dictado. |
+| **3** | Flujos **"primer logueo"** y **"tableta no enciende"**. Cédula por teclado, espera activa y `create_case()` con número de caso dictado. |
 | **4** | Consola mínima: cola, detalle (pasos intentados, transcripción enmascarada), tomar caso. **Video de respaldo grabado.** |
 | **5** | 10 llamadas de prueba, ajuste de latencia y de textos, ensayo del guion de la demo. |
 

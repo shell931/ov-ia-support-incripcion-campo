@@ -1,0 +1,42 @@
+# Flow: the tablet has no Internet connection.
+# Source: fuente/incripcion-campo.pdf (Conectividad). Spoken texts PENDING review by the process team.
+# Rule: short sentences, one action per turn; the operator's hands are busy.
+id: no_internet
+description: The tablet has no Internet connection.
+start: mobile_data
+escalate: escalate
+max_unclear_attempts: 2
+
+steps:
+  - id: mobile_data
+    text: "Revise que los datos móviles de la tableta estén activos. ¿Están activos?"
+    on_yes: airplane_mode
+    on_no: enable_data
+
+  - id: enable_data
+    text: "Deslice desde arriba de la pantalla y toque el ícono de datos móviles. Avíseme cuando lo haya activado."
+    active_wait: true
+    on_yes: airplane_mode
+    on_no: escalate
+
+  - id: airplane_mode
+    text: "Ahora revise que el modo avión esté apagado. ¿Ya tiene Internet?"
+    on_yes: resolved
+    on_no: restart
+
+  - id: restart
+    text: "Reinicie la tableta. Me quedo en la línea; avíseme cuando prenda. ¿Ya tiene Internet?"
+    active_wait: true
+    on_yes: resolved
+    on_no: escalate
+
+  - id: resolved
+    text: "Perfecto, quedó resuelto. Gracias por llamar."
+    end: true
+
+  - id: escalate
+    text: "No pudimos resolverlo por aquí. Voy a dejar un caso para soporte técnico; lo van a llamar a este número."
+    end: true
+    action: create_case
+    destination: help_desk
+    priority: normal

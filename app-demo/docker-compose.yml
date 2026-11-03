@@ -1,5 +1,5 @@
-# Mismo archivo en la notebook, en la VM de la demo y en el datacenter del cliente.
-# Lo que cambia entre modos está en .env, no acá.
+# Same file on a laptop, on the demo VM and in the client's datacenter.
+# What changes between modes lives in .env, not here.
 services:
   postgres:
     image: postgres:16-alpine
@@ -16,7 +16,7 @@ services:
       timeout: 3s
       retries: 10
     ports:
-      - "127.0.0.1:5432:5432"   # solo local; no se publica afuera
+      - "127.0.0.1:5432:5432"   # localhost only; never published
 
   core:
     build: .
@@ -29,7 +29,7 @@ services:
     ports:
       - "8000:8000"
 
-  # voice-agent y console se agregan en D1.4 y D4.1.
+  # voice-agent and console are added in D1.4 and D4.1.
 
 volumes:
   pgdata:

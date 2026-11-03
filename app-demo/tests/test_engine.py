@@ -1,230 +1,222 @@
-"""Recorre los tres árboles sin voz: si el motor está bien, la voz es solo un adaptador."""
+"""Walks the three trees without voice: if the engine is right, voice is just an adapter."""
 
 from __future__ import annotations
 
 import pytest
 
-from core.engine import (
-    Estado,
-    FlujoInvalido,
-    Motor,
-    TransicionInvalida,
-    cargar_flujos,
-    etiqueta_desde_dtmf,
-    flujo_desde_dict,
-)
+from core.engine import Engine, InvalidFlow, InvalidTransition, State, flow_from_dict, label_from_dtmf, load_flows
+
+FLOW_IDS = ["no_internet", "first_login", "tablet_wont_power_on"]
 
 
 @pytest.fixture(scope="module")
-def motor() -> Motor:
-    return Motor(cargar_flujos())
+def engine() -> Engine:
+    return Engine(load_flows())
 
 
-def recorrer(motor: Motor, flujo_id: str, etiquetas: list[str]):
-    r = motor.iniciar(flujo_id)
-    for e in etiquetas:
-        r = motor.avanzar(r.estado, e)
+def walk(engine: Engine, flow_id: str, labels: list[str]):
+    r = engine.start(flow_id)
+    for label in labels:
+        r = engine.advance(r.state, label)
     return r
 
 
-# --------------------------------------------------------------------------- carga
+# --------------------------------------------------------------------------- loading
 
 
-def test_cargan_los_tres_flujos(motor: Motor):
-    assert set(motor.flujos) == {"sin_internet", "primer_logueo", "tableta_no_enciende"}
+def test_loads_the_three_flows(engine: Engine):
+    assert set(engine.flows) == set(FLOW_IDS)
 
 
-@pytest.mark.parametrize("flujo_id", ["sin_internet", "primer_logueo", "tableta_no_enciende"])
-def test_todo_paso_es_alcanzable(motor: Motor, flujo_id: str):
-    flujo = motor.flujos[flujo_id]
-    vistos, pendientes = set(), [flujo.inicio]
-    while pendientes:
-        pid = pendientes.pop()
-        if pid in vistos:
+@pytest.mark.parametrize("flow_id", FLOW_IDS)
+def test_every_step_is_reachable(engine: Engine, flow_id: str):
+    flow = engine.flows[flow_id]
+    seen, pending = set(), [flow.start]
+    while pending:
+        sid = pending.pop()
+        if sid in seen:
             continue
-        vistos.add(pid)
-        paso = flujo.pasos[pid]
-        pendientes += [d for d in (paso.si, paso.no) if d]
-    vistos.add(flujo.escalar)  # alcanzable siempre con "persona"
-    assert vistos == set(flujo.pasos), f"pasos huérfanos: {set(flujo.pasos) - vistos}"
+        seen.add(sid)
+        step = flow.steps[sid]
+        pending += [t for t in (step.on_yes, step.on_no) if t]
+    seen.add(flow.escalate)  # always reachable through "human"
+    assert seen == set(flow.steps), f"orphan steps: {set(flow.steps) - seen}"
 
 
-# --------------------------------------------------------------------------- sin internet
+# --------------------------------------------------------------------------- no internet
 
 
 @pytest.mark.parametrize(
-    "etiquetas, final",
+    "labels, final",
     [
-        (["si", "si"], "resuelto"),  # datos activos, modo avión ok
-        (["si", "no", "si"], "resuelto"),  # reinicio resuelve
-        (["si", "no", "no"], "escalar"),  # reinicio no resuelve
-        (["no", "si", "si"], "resuelto"),  # activa datos
-        (["no", "no"], "escalar"),  # no logra activar datos
-        (["no", "si", "no", "si"], "resuelto"),
-        (["no", "si", "no", "no"], "escalar"),
+        (["yes", "yes"], "resolved"),  # data on, airplane mode off
+        (["yes", "no", "yes"], "resolved"),  # restart fixes it
+        (["yes", "no", "no"], "escalate"),  # restart does not fix it
+        (["no", "yes", "yes"], "resolved"),  # turns data on
+        (["no", "no"], "escalate"),  # cannot turn data on
+        (["no", "yes", "no", "yes"], "resolved"),
+        (["no", "yes", "no", "no"], "escalate"),
     ],
 )
-def test_sin_internet_todas_las_ramas(motor: Motor, etiquetas, final):
-    r = recorrer(motor, "sin_internet", etiquetas)
-    assert r.paso.id == final
-    assert r.fin
-    assert r.crear_caso == (final == "escalar")
+def test_no_internet_every_branch(engine: Engine, labels, final):
+    r = walk(engine, "no_internet", labels)
+    assert r.step.id == final
+    assert r.end
+    assert r.create_case == (final == "escalate")
 
 
-def test_historial_registra_pasos_intentados(motor: Motor):
-    r = recorrer(motor, "sin_internet", ["si", "no", "no"])
-    assert r.estado.historial == ("datos_moviles", "modo_avion", "reiniciar", "escalar")
+def test_history_records_steps_tried(engine: Engine):
+    r = walk(engine, "no_internet", ["yes", "no", "no"])
+    assert r.state.history == ("mobile_data", "airplane_mode", "restart", "escalate")
 
 
-# --------------------------------------------------------------------------- tableta
+# --------------------------------------------------------------------------- tablet
 
 
-def test_tableta_no_disponible_va_a_logistica(motor: Motor):
-    r = recorrer(motor, "tableta_no_enciende", ["no"])
-    assert r.paso.id == "no_disponible"
-    assert r.crear_caso and r.paso.destino == "logistica" and r.paso.prioridad == "alta"
+def test_missing_tablet_goes_to_logistics(engine: Engine):
+    r = walk(engine, "tablet_wont_power_on", ["no"])
+    assert r.step.id == "tablet_missing"
+    assert r.create_case and r.step.destination == "logistics" and r.step.priority == "high"
 
 
-def test_tableta_agota_los_cuatro_pasos_y_escala(motor: Motor):
-    r = recorrer(motor, "tableta_no_enciende", ["si", "no", "no", "no", "no"])
-    assert r.paso.id == "escalar"
-    assert r.estado.historial[1:5] == ("mover_cable", "cable_tipo_c", "otra_toma", "otro_adaptador")
+def test_tablet_exhausts_four_checks_then_escalates(engine: Engine):
+    r = walk(engine, "tablet_wont_power_on", ["yes", "no", "no", "no", "no"])
+    assert r.step.id == "escalate"
+    assert r.state.history[1:5] == ("wiggle_cable", "usb_c_cable", "other_outlet", "other_adapter")
 
 
 @pytest.mark.parametrize("n_no", [0, 1, 2, 3])
-def test_tableta_resuelve_en_cualquier_paso(motor: Motor, n_no: int):
-    r = recorrer(motor, "tableta_no_enciende", ["si"] + ["no"] * n_no + ["si"])
-    assert r.paso.id == "resuelto"
+def test_tablet_can_resolve_at_any_check(engine: Engine, n_no: int):
+    r = walk(engine, "tablet_wont_power_on", ["yes"] + ["no"] * n_no + ["yes"])
+    assert r.step.id == "resolved"
 
 
-# --------------------------------------------------------------------------- primer logueo
+# --------------------------------------------------------------------------- first login
 
 
-def test_logueo_empieza_pidiendo_cedula_por_teclado(motor: Motor):
-    r = motor.iniciar("primer_logueo")
-    assert r.paso.pide_dtmf
+def test_login_starts_asking_id_number_on_keypad(engine: Engine):
+    assert engine.start("first_login").step.asks_dtmf
 
 
-def test_logueo_sin_correo_va_a_censo(motor: Motor):
-    r = recorrer(motor, "primer_logueo", ["si", "no"])
-    assert r.paso.id == "sin_credenciales" and r.paso.destino == "direccion_censo"
+def test_login_without_credentials_email_goes_to_census(engine: Engine):
+    r = walk(engine, "first_login", ["yes", "no"])
+    assert r.step.id == "missing_credentials" and r.step.destination == "census_office"
 
 
-def test_logueo_dos_fallos_de_credenciales_escala(motor: Motor):
-    r = recorrer(motor, "primer_logueo", ["si", "si", "no", "no"])
-    assert r.paso.id == "escalar"
+def test_login_two_credential_failures_escalate(engine: Engine):
+    assert walk(engine, "first_login", ["yes", "yes", "no", "no"]).step.id == "escalate"
 
 
-def test_logueo_huella_no_reconocida_es_prioridad_alta(motor: Motor):
-    r = recorrer(motor, "primer_logueo", ["si", "si", "si", "no", "no"])
-    assert r.paso.id == "huella_no_reconocida"
-    assert r.paso.destino == "direccion_censo" and r.paso.prioridad == "alta"
+def test_login_rejected_fingerprint_is_high_priority(engine: Engine):
+    r = walk(engine, "first_login", ["yes", "yes", "yes", "no", "no"])
+    assert r.step.id == "fingerprint_rejected"
+    assert r.step.destination == "census_office" and r.step.priority == "high"
 
 
-def test_logueo_camino_feliz(motor: Motor):
-    assert recorrer(motor, "primer_logueo", ["si", "si", "si", "si"]).paso.id == "resuelto"
+def test_login_happy_path(engine: Engine):
+    assert walk(engine, "first_login", ["yes", "yes", "yes", "yes"]).step.id == "resolved"
 
 
-# --------------------------------------------------------------------------- reglas transversales
+# --------------------------------------------------------------------------- cross-cutting rules
 
 
-def test_persona_escala_desde_cualquier_paso(motor: Motor):
-    r = recorrer(motor, "sin_internet", ["si", "persona"])
-    assert r.paso.id == "escalar" and r.crear_caso
+def test_human_escalates_from_any_step(engine: Engine):
+    r = walk(engine, "no_internet", ["yes", "human"])
+    assert r.step.id == "escalate" and r.create_case
 
 
-def test_esperar_no_avanza_ni_cuenta_fallo(motor: Motor):
-    r = recorrer(motor, "sin_internet", ["si", "no"])  # en "reiniciar"
-    r2 = motor.avanzar(r.estado, "esperar")
-    assert r2.paso.id == "reiniciar"
-    assert r2.estado.intentos_no_entendi == 0
+def test_wait_neither_advances_nor_counts_as_failure(engine: Engine):
+    r = walk(engine, "no_internet", ["yes", "no"])  # at "restart"
+    r2 = engine.advance(r.state, "wait")
+    assert r2.step.id == "restart"
+    assert r2.state.unclear_attempts == 0
 
 
-def test_no_entendi_repite_y_pasa_a_teclado(motor: Motor):
-    r = motor.iniciar("sin_internet")
-    r = motor.avanzar(r.estado, "no_entendi")
-    assert r.paso.id == "datos_moviles" and not r.modo_teclado
-    r = motor.avanzar(r.estado, "no_entendi")
-    assert r.paso.id == "datos_moviles" and r.modo_teclado
+def test_unclear_repeats_then_switches_to_keypad(engine: Engine):
+    r = engine.start("no_internet")
+    r = engine.advance(r.state, "unclear")
+    assert r.step.id == "mobile_data" and not r.keypad_mode
+    r = engine.advance(r.state, "unclear")
+    assert r.step.id == "mobile_data" and r.keypad_mode
 
 
-def test_respuesta_valida_reinicia_contador(motor: Motor):
-    r = motor.iniciar("sin_internet")
-    r = motor.avanzar(r.estado, "no_entendi")
-    r = motor.avanzar(r.estado, "si")
-    assert r.estado.intentos_no_entendi == 0
+def test_valid_answer_resets_unclear_counter(engine: Engine):
+    r = engine.start("no_internet")
+    r = engine.advance(r.state, "unclear")
+    r = engine.advance(r.state, "yes")
+    assert r.state.unclear_attempts == 0
 
 
-def test_no_se_avanza_un_flujo_terminado(motor: Motor):
-    r = recorrer(motor, "sin_internet", ["si", "si"])
-    with pytest.raises(TransicionInvalida):
-        motor.avanzar(r.estado, "si")
+def test_cannot_advance_an_ended_flow(engine: Engine):
+    r = walk(engine, "no_internet", ["yes", "yes"])
+    with pytest.raises(InvalidTransition):
+        engine.advance(r.state, "yes")
 
 
-@pytest.mark.parametrize("etiqueta", ["inicio", "quizas", ""])
-def test_etiqueta_invalida(motor: Motor, etiqueta: str):
-    with pytest.raises(TransicionInvalida):
-        motor.avanzar(motor.iniciar("sin_internet").estado, etiqueta)
+@pytest.mark.parametrize("label", ["start", "maybe", ""])
+def test_invalid_label(engine: Engine, label: str):
+    with pytest.raises(InvalidTransition):
+        engine.advance(engine.start("no_internet").state, label)
 
 
-def test_flujo_desconocido(motor: Motor):
-    with pytest.raises(TransicionInvalida):
-        motor.iniciar("no_existe")
+def test_unknown_flow(engine: Engine):
+    with pytest.raises(InvalidTransition):
+        engine.start("does_not_exist")
 
 
-def test_estado_se_serializa_ida_y_vuelta(motor: Motor):
-    r = recorrer(motor, "sin_internet", ["no", "no_entendi"])
-    assert Estado.desde_dict(r.estado.a_dict()) == r.estado
+def test_state_round_trips(engine: Engine):
+    r = walk(engine, "no_internet", ["no", "unclear"])
+    assert State.from_dict(r.state.to_dict()) == r.state
 
 
-@pytest.mark.parametrize("tecla, etiqueta", [("1", "si"), ("2", "no"), ("0", "persona"), ("9", "no_entendi")])
-def test_dtmf(tecla: str, etiqueta: str):
-    assert etiqueta_desde_dtmf(tecla) == etiqueta
+@pytest.mark.parametrize("key, label", [("1", "yes"), ("2", "no"), ("0", "human"), ("9", "unclear")])
+def test_dtmf(key: str, label: str):
+    assert label_from_dtmf(key) == label
 
 
-# --------------------------------------------------------------------------- validación del YAML
+# --------------------------------------------------------------------------- YAML validation
 
 
 def _base(**extra):
     d = {
         "id": "x",
-        "pasos": [
-            {"id": "a", "texto": "¿Sí?", "si": "fin", "no": "escalar"},
-            {"id": "fin", "texto": "Listo.", "fin": True},
-            {"id": "escalar", "texto": "Caso.", "fin": True, "accion": "crear_caso"},
+        "steps": [
+            {"id": "a", "text": "¿Sí?", "on_yes": "done", "on_no": "escalate"},
+            {"id": "done", "text": "Listo.", "end": True},
+            {"id": "escalate", "text": "Caso.", "end": True, "action": "create_case"},
         ],
     }
     d.update(extra)
     return d
 
 
-def test_flujo_minimo_valido():
-    assert flujo_desde_dict(_base()).inicio == "a"
+def test_minimal_valid_flow():
+    assert flow_from_dict(_base()).start == "a"
 
 
-def test_rechaza_transicion_a_paso_inexistente():
+def test_rejects_transition_to_missing_step():
     d = _base()
-    d["pasos"][0]["si"] = "fantasma"
-    with pytest.raises(FlujoInvalido):
-        flujo_desde_dict(d)
+    d["steps"][0]["on_yes"] = "ghost"
+    with pytest.raises(InvalidFlow):
+        flow_from_dict(d)
 
 
-def test_rechaza_paso_intermedio_sin_no():
+def test_rejects_non_end_step_without_on_no():
     d = _base()
-    del d["pasos"][0]["no"]
-    with pytest.raises(FlujoInvalido):
-        flujo_desde_dict(d)
+    del d["steps"][0]["on_no"]
+    with pytest.raises(InvalidFlow):
+        flow_from_dict(d)
 
 
-def test_rechaza_escalar_que_no_crea_caso():
+def test_rejects_escalate_that_does_not_create_case():
     d = _base()
-    del d["pasos"][2]["accion"]
-    with pytest.raises(FlujoInvalido):
-        flujo_desde_dict(d)
+    del d["steps"][2]["action"]
+    with pytest.raises(InvalidFlow):
+        flow_from_dict(d)
 
 
-def test_rechaza_ids_repetidos():
+def test_rejects_duplicate_ids():
     d = _base()
-    d["pasos"].append({"id": "a", "texto": "dup", "fin": True})
-    with pytest.raises(FlujoInvalido):
-        flujo_desde_dict(d)
+    d["steps"].append({"id": "a", "text": "dup", "end": True})
+    with pytest.raises(InvalidFlow):
+        flow_from_dict(d)

@@ -26,7 +26,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | Agente de voz | LiveKit Agents (Python) | Es el único de los evaluados que también corre en local. |
 | Modo inicial | Nube: LiveKit Cloud + Deepgram + Claude Haiku 5.5 + Cartesia | Velocidad para la demo. |
 | Código | Carpeta `app-demo/` en este mismo repo | Decisión del 2026-11-03: documentación y demo juntas. |
-| Clasificador | **Claude Haiku 5.5** (`claude-haiku-5-5`) con el SDK oficial de Anthropic, detrás de un puerto propio `Clasificador` | El más barato de los evaluados ($0,10 / $0,50 por millón de tokens de entrada / salida). En local se cambia el adaptador por uno compatible con OpenAI (Ollama o vLLM); el núcleo no se entera. |
+| Clasificador | **Claude Haiku 5.5** (`claude-haiku-5-5`) con el SDK oficial de Anthropic, detrás de un puerto propio `Classifier` | El más barato de los evaluados ($0,10 / $0,50 por millón de tokens de entrada / salida). En local se cambia el adaptador por uno compatible con OpenAI (Ollama o vLLM); el núcleo no se entera. |
 | Lógica del flujo | Motor YAML determinista | El LLM solo clasifica; no redacta el procedimiento. |
 | Datos | Postgres plano | Se muda sin dependencias de proveedor. |
 | Despliegue | `docker-compose.yml` en una VM | El mismo archivo va al datacenter. |
@@ -38,7 +38,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | --- | --- | --- | --- | --- |
 | P1 | ¿Dónde vive el código? | **Decidido:** carpeta `app-demo/` en este repo. | Carlos | ✅ |
 | P2 | ¿Qué VM? | Cualquier proveedor con 4 vCPU / 8 GB y IP pública. Si es posible, cerca de us-east, que es donde responden los proveedores de voz. | | ⬜ |
-| P3 | ¿Qué LLM chico? | **Decidido:** Claude Haiku 5.5 con el SDK oficial de Anthropic, detrás del puerto `Clasificador` (ver sección 6). | Carlos | ✅ |
+| P3 | ¿Qué LLM chico? | **Decidido:** Claude Haiku 5.5 con el SDK oficial de Anthropic, detrás del puerto `Classifier` (ver sección 6). | Carlos | ✅ |
 | P4 | ¿Qué voz en español? | Probar 2 o 3 voces de Cartesia con acento neutro latinoamericano el día 1 y elegir con el equipo. | | ⬜ |
 | P5 | ¿Número de EE. UU. o de Colombia para la demo? | EE. UU. si el colombiano no está el día 1. Respaldo: llamada desde el navegador. | | ⬜ |
 | P6 | ¿Consola con qué tecnología? | Renderizada en el servidor (FastAPI + plantillas), sin SPA. Es una bandeja, no un producto. | | ⬜ |
@@ -58,25 +58,28 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 
 ## 5. Estructura del código
 
+**Convención:** todo el código va en inglés (endpoints, funciones, tablas, claves del YAML, variables de entorno, comentarios). En español solo va el **contenido**: lo que oye el operador y la documentación.
+
 ```text
 app-demo/                       # dentro de este repo
-├── docker-compose.yml          # núcleo, postgres, consola, voice-agent
+├── docker-compose.yml          # core, postgres, console, voice-agent
 ├── .env.example                # ver sección 7
 ├── core/                       # NÚCLEO — no importa nada de LiveKit ni de proveedores
 │   ├── flows/
-│   │   ├── sin_internet.yaml
-│   │   ├── primer_logueo.yaml
-│   │   └── tableta_no_enciende.yaml
+│   │   ├── no_internet.yaml
+│   │   ├── first_login.yaml
+│   │   └── tablet_wont_power_on.yaml
 │   ├── engine.py               # motor de flujos: lee YAML, avanza, cuenta intentos
-│   ├── cases.py                # crear_caso, numeración, prioridad
+│   ├── sessions.py             # puerto SessionStore + adaptadores Postgres y memoria
+│   ├── cases.py                # create_case, numeración, prioridad
 │   ├── masking.py              # enmascarado de cédula
-│   ├── db.py                   # Postgres (sesión, casos, historial)
-│   └── api.py                  # puertos HTTP: /siguiente-paso, /casos
+│   ├── db.py                   # conexión a Postgres
+│   └── api.py                  # puertos HTTP: /health, /next-step, /cases
 ├── voice_agent/                # ADAPTADOR — LiveKit Agents
 │   ├── agent.py                # sesión de llamada, turnos, DTMF, espera activa
 │   ├── providers.py            # STT / TTS elegidos por variable de entorno
-│   └── classify/               # PUERTO Clasificador: texto → sí / no / no_entendí / persona / esperar
-│       ├── port.py             # interfaz: clasificar(texto, paso) -> etiqueta
+│   └── classifier/             # PUERTO Classifier: texto → yes / no / unclear / human / wait
+│       ├── port.py             # interfaz: classify(text, current_step) -> label
 │       ├── anthropic.py        # modo nube: Claude Haiku 5.5, SDK oficial
 │       └── openai_compat.py    # modo local: Ollama / vLLM
 ├── console/                    # bandeja de la mesa
@@ -84,99 +87,101 @@ app-demo/                       # dentro de este repo
 │   └── templates/
 ├── tests/
 │   ├── test_engine.py          # los tres árboles recorridos sin voz
+│   ├── test_api.py             # /next-step con persistencia en memoria
 │   └── calls/                  # audios de regresión (desde el tramo 2)
 └── migrations/
+    └── 001_initial.sql         # sessions, cases, events
 ```
 
 **Regla de revisión:** `core/` no puede importar nada de `voice_agent/` ni de ningún SDK de proveedor. Si pasa, la mudanza se rompe.
 
 ## 6. Contratos del núcleo (puertos)
 
-El clasificador también es un puerto: `clasificar(texto, paso_actual) -> etiqueta`. La etiqueta sale de una lista cerrada de 6 valores (salida estructurada), así que cambiar de Haiku a un modelo local no cambia el contrato. Para la voz, la latencia manda: esfuerzo bajo, respuesta corta y medir el tiempo por turno el día 2.
-
 Son la frontera hexagonal. El agente de voz solo conoce esto.
 
+El clasificador también es un puerto: `classify(text, current_step) -> label`. La etiqueta sale de una lista cerrada (salida estructurada), así que cambiar de Haiku a un modelo local no cambia el contrato. Para la voz, la latencia manda: esfuerzo bajo, respuesta corta y medir el tiempo por turno el día 2.
+
 ```text
-POST /siguiente-paso
-  entrada: { sesion_id, telefono, etiqueta, dtmf? }
-           etiqueta ∈ { inicio, si, no, no_entendi, persona, esperar }
-  salida:  { paso_id, texto, espera_activa: bool, pide_dtmf: bool,
-             fin: bool, caso?: { numero, prioridad } }
+GET  /health                    # 200 si el núcleo y Postgres responden; 503 si no
 
-POST /casos
-  entrada: { sesion_id, telefono, cedula_enmascarada, flujo,
-             pasos_intentados[], transcripcion[], motivo }
-  salida:  { numero, prioridad }
+POST /next-step
+  request:  { session_id, phone, label, flow?, dtmf? }
+            label ∈ { start, yes, no, unclear, human, wait }
+  response: { step_id, text, active_wait, asks_dtmf, keypad_mode,
+              end, create_case, destination, priority, steps_tried[] }
 
-GET  /casos?estado=abierto      # para la consola
-POST /casos/{numero}/tomar      # nadie más llama al mismo operador
-POST /casos/{numero}/cerrar     # causa + notas
+POST /cases
+  request:  { session_id, transcript[] }        # el resto sale de la sesión
+  response: { number, priority, destination }
+
+GET  /cases?status=open                         # para la consola
+POST /cases/{number}/take                       # nadie más llama al mismo operador
+POST /cases/{number}/close                      # close_reason + notes
 ```
 
-Forma del YAML (ejemplo, flujo "sin internet"):
+Forma del YAML (ejemplo, flujo "sin internet"; las claves en inglés, el texto en español):
 
 ```yaml
-id: sin_internet
-max_intentos_no_entendi: 2       # después, pasa a teclado
-pasos:
-  - id: datos_moviles
-    texto: "Revise que los datos móviles de la tableta estén activos. ¿Están activos?"
-    si: modo_avion
-    no: activar_datos
-  - id: activar_datos
-    texto: "Deslice desde arriba y toque el ícono de datos móviles. Avíseme cuando lo haga."
-    espera_activa: true
-    si: modo_avion
-    no: escalar
-  - id: modo_avion
-    texto: "Revise que el modo avión esté apagado. ¿Ya tiene internet?"
-    si: resuelto
-    no: reiniciar
-  - id: reiniciar
-    texto: "Reinicie la tableta. Me quedo en línea; avíseme cuando prenda."
-    espera_activa: true
-    si: resuelto
-    no: escalar
-  - id: resuelto
-    texto: "Perfecto, quedó resuelto. Gracias."
-    fin: true
-  - id: escalar
-    texto: "Voy a dejar un caso para la mesa de ayuda. Lo van a llamar a este número."
-    accion: crear_caso
-    fin: true
+id: no_internet
+start: mobile_data
+escalate: escalate               # "human" salta acá
+max_unclear_attempts: 2          # después, pasa a teclado (1 yes, 2 no, 0 human)
+steps:
+  - id: mobile_data
+    text: "Revise que los datos móviles de la tableta estén activos. ¿Están activos?"
+    on_yes: airplane_mode
+    on_no: enable_data
+  - id: restart
+    text: "Reinicie la tableta. Me quedo en la línea; avíseme cuando prenda. ¿Ya tiene Internet?"
+    active_wait: true
+    on_yes: resolved
+    on_no: escalate
+  - id: resolved
+    text: "Perfecto, quedó resuelto. Gracias por llamar."
+    end: true
+  - id: escalate
+    text: "No pudimos resolverlo por aquí. Voy a dejar un caso para soporte técnico."
+    end: true
+    action: create_case
+    destination: help_desk       # help_desk | census_office | logistics
+    priority: normal             # normal | high
 ```
+
+Las transiciones se llaman `on_yes` / `on_no` y no `yes` / `no` a propósito: en YAML 1.1, una clave `no:` sin comillas se lee como el booleano `False` (el "problema de Noruega").
 
 ## 7. Variables de entorno
 
 ```dotenv
-# --- Modo (nube | local): documenta la intención; las piezas se eligen abajo
-MODO=nube
+# --- Mode (cloud | onprem): documents intent; each piece is picked below
+MODE=cloud
 
-# --- Telefonía y servidor de voz
-LIVEKIT_URL=wss://<proyecto>.livekit.cloud      # local: wss://voz.cliente.local
+# --- Postgres (the one in docker-compose)
+DATABASE_URL=postgresql://app:<password>@postgres:5432/soporte
+
+# --- Telephony and voice server
+LIVEKIT_URL=wss://<project>.livekit.cloud       # onprem: wss://voz.cliente.local
 LIVEKIT_API_KEY=
 LIVEKIT_API_SECRET=
-SIP_TRUNK=livekit-cloud                          # local: operador-co
+SIP_TRUNK=livekit-cloud                          # onprem: operador-co
 
-# --- Voz a texto
-STT=deepgram                                     # local: whisper
-STT_BASE_URL=                                    # local: http://whisper:8000/v1
+# --- Speech to text
+STT=deepgram                                     # onprem: whisper
+STT_BASE_URL=                                    # onprem: http://whisper:8000/v1
 DEEPGRAM_API_KEY=
 
-# --- Clasificador
-CLASIFICADOR=anthropic                           # local: openai-compat
-LLM_MODEL=claude-haiku-5-5                       # local: el modelo servido por Ollama / vLLM
+# --- Classifier
+CLASSIFIER=anthropic                             # onprem: openai-compat
+LLM_MODEL=claude-haiku-5-5                       # onprem: the model served by Ollama / vLLM
 ANTHROPIC_API_KEY=
-LLM_BASE_URL=                                    # solo local: http://llm:11434/v1
+LLM_BASE_URL=                                    # onprem only: http://llm:11434/v1
 
-# --- Texto a voz
-TTS=cartesia                                     # local: piper
-TTS_BASE_URL=                                    # local: http://piper:5000/v1
+# --- Text to speech
+TTS=cartesia                                     # onprem: piper
+TTS_BASE_URL=                                    # onprem: http://piper:5000/v1
 CARTESIA_API_KEY=
-TTS_VOZ=
+TTS_VOICE=
 
-# --- Núcleo
-DATABASE_URL=postgresql://app:app@postgres:5432/soporte
+# --- Core
 CORE_URL=http://core:8000
 ```
 
@@ -198,11 +203,11 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 
 ### Día 1 — Base en pie
 
-- [ ] **D1.1** · *(código listo en `app-demo/`; falta verificar `docker compose up`)* Crear estructura de la sección 5 · `docker compose up` levanta Postgres y un `core` que responde `/salud` · —
-- [ ] **D1.2** · *(SQL listo en `migrations/001_inicial.sql`; se verifica con D1.1)* Migración inicial: tablas `sesiones`, `casos`, `eventos` · tablas creadas al levantar · D1.1
+- [ ] **D1.1** · *(código listo en `app-demo/`; falta verificar `docker compose up`)* Crear estructura de la sección 5 · `docker compose up` levanta Postgres y un `core` que responde `/health` · —
+- [ ] **D1.2** · *(SQL listo en `migrations/001_initial.sql`; se verifica con D1.1)* Migración inicial: tablas `sessions`, `cases`, `events` · tablas creadas al levantar · D1.1
 - [ ] **D1.3** · Número en LiveKit Cloud + regla de despacho al agente · llamar al número dispara una sesión del agente · Prerrequisitos
 - [ ] **D1.4** · `voice_agent` mínimo: atiende y saluda con la voz elegida · se oye el saludo al llamar desde un celular · D1.3
-- [ ] **D1.5** · `providers.py`: STT y TTS elegidos por variable de entorno · cambiar `TTS_VOZ` cambia la voz sin tocar código · D1.4
+- [ ] **D1.5** · `providers.py`: STT y TTS elegidos por variable de entorno · cambiar `TTS_VOICE` cambia la voz sin tocar código · D1.4
 - [ ] **D1.6** · Probar 2–3 voces y cerrar P4 · voz elegida anotada en `.env.example` · D1.4
 - [ ] **D1.7** · Confirmar que el trámite del número colombiano está iniciado · número de solicitud anotado · —
 
@@ -211,22 +216,22 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 ### Día 2 — Primer flujo completo + prueba de realidad
 
 - [x] **D2.1** · `engine.py`: carga YAML, avanza por etiqueta, cuenta intentos, marca espera activa · `test_engine.py` recorre "sin internet" en todas sus ramas · D1.1
-- [x] **D2.2** · `flows/sin_internet.yaml` con los textos validados · el test pasa con el YAML real · D2.1
-- [x] **D2.3** · *(probado con persistencia en memoria; Postgres se verifica con D1.1)* Puerto `POST /siguiente-paso` + sesión en Postgres · una secuencia de llamadas con curl recorre el flujo · D2.1, D1.2
-- [ ] **D2.4** · Puerto `Clasificador` + adaptador `anthropic.py` (Haiku 5.5, salida restringida a las 6 etiquetas) · 20 frases de la sección 8 clasificadas bien y latencia medida · D1.1
-- [ ] **D2.5** · El agente conecta turno → clasificar → `/siguiente-paso` → dice el texto · "sin internet" completo por teléfono · D2.3, D2.4
+- [x] **D2.2** · `flows/no_internet.yaml` con los textos validados · el test pasa con el YAML real · D2.1
+- [x] **D2.3** · *(probado con persistencia en memoria; Postgres se verifica con D1.1)* Puerto `POST /next-step` + sesión en Postgres · una secuencia de llamadas con curl recorre el flujo · D2.1, D1.2
+- [ ] **D2.4** · Puerto `Classifier` + adaptador `anthropic.py` (Haiku 5.5, salida restringida a las 6 etiquetas) · 20 frases de la sección 8 clasificadas bien y latencia medida · D1.1
+- [ ] **D2.5** · El agente conecta turno → clasificar → `/next-step` → dice el texto · "sin internet" completo por teléfono · D2.3, D2.4
 - [ ] **D2.6** · **Prueba con ruido de puesto y acento colombiano** (3 personas distintas) · anotar aciertos/fallos de transcripción y latencia por turno · D2.5
 
 **Punto de decisión:** si D2.6 sale mal (latencia de más de 1,5 s por turno o transcripción poco confiable), cambiar modelo o proveedor de STT **hoy**. Para eso existe `providers.py`.
 
 ### Día 3 — Los tres flujos + escalamiento
 
-- [x] **D3.1** · *(adelantada)* `flows/primer_logueo.yaml` y `flows/tableta_no_enciende.yaml` · tests de ambos árboles pasan · D2.1
+- [x] **D3.1** · *(adelantada)* `flows/first_login.yaml` y `flows/tablet_wont_power_on.yaml` · tests de ambos árboles pasan · D2.1
 - [ ] **D3.2** · Elección de flujo al inicio ("¿Qué le pasa? ¿No tiene internet, no enciende la tableta o no puede entrar?") · el agente enruta bien los tres casos · D2.5
 - [ ] **D3.3** · Cédula por teclado (DTMF) + enmascarado (`masking.py`) · la cédula nunca aparece completa en los logs · D2.5
 - [ ] **D3.4** · Espera activa: en pasos marcados, el silencio no corta y se pregunta cada 20–30 s · reiniciar la tableta no corta la llamada · D2.5
-- [ ] **D3.5** · Teclado como respaldo: dos `no_entendi` seguidos → "marque 1 para sí, 2 para no, 0 para hablar con alguien" · funciona en los tres flujos · D3.3
-- [ ] **D3.6** · Puerto `POST /casos` + escalamiento: el agente dicta el número de caso · el caso queda en Postgres con pasos y transcripción · D2.3
+- [ ] **D3.5** · Teclado como respaldo: dos `unclear` seguidos → "marque 1 para sí, 2 para no, 0 para hablar con alguien" · funciona en los tres flujos · D3.3
+- [ ] **D3.6** · Puerto `POST /cases` + escalamiento: el agente dicta el número de caso · el caso queda en Postgres con pasos y transcripción · D2.3
 
 ### Día 4 — Consola + respaldo
 
@@ -281,7 +286,7 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 
 | Fecha | Día | Hecho | Bloqueos | Decisiones |
 | --- | --- | --- | --- | --- |
-| 2026-11-03 | antes de D1 | Motor YAML + 3 flujos (D2.1, D2.2, D3.1). `POST /siguiente-paso` con cédula por teclado enmascarada (D2.3 y parte de D3.3). 66 tests. Compose con Postgres, `/salud`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Postgres dentro del compose (no Supabase). Código en `app-demo/`. |
+| 2026-11-03 | antes de D1 | Motor YAML + 3 flujos (D2.1, D2.2, D3.1). `POST /next-step` con cédula por teclado enmascarada (D2.3 y parte de D3.3). 66 tests. Compose con Postgres, `/health`, migración. | Faltan cuentas: LiveKit Cloud, Deepgram, Cartesia, Anthropic. | Postgres dentro del compose (no Supabase). Código en `app-demo/`. |
 | | D1 | | | |
 | | D2 | | | |
 | | D3 | | | |
