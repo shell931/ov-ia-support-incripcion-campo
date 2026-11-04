@@ -43,7 +43,7 @@ Ver [app-demo/README.md → El agente de voz](../app-demo/README.md#el-agente-de
 ### Lo que sigue, en orden
 
 1. **Probar con la voz de una persona** (`console`, micrófono) los tres flujos. Anotar qué frases no entiende (D2.4, D2.6).
-2. **Número de teléfono** en LiveKit Cloud + regla de despacho al agente (D1.3). Con eso se prueban el teclado y la cédula (D3.3, D3.5).
+2. **Número de teléfono** (P5): trámite del número **colombiano en Twilio** iniciado el 2026-11-04. Si el fin de semana del 7–8 de noviembre no está, se compra el de EE. UU. en LiveKit. Con el número: trunk SIP de Twilio → LiveKit + regla de despacho al agente `soporte-campo` (D1.3). Mientras tanto, el teclado y la cédula se prueban en la **Console de LiveKit** (pestaña DTMF).
 3. **`docker compose up` completo** en la notebook y después en la EC2 (D1.1, DEPLOY.md).
 4. **Latencia**: con el clasificador estructurado pasan ~2 s entre que el operador termina de hablar y el agente ya decidió (≈0,6 s de fin de turno + ≈1,2 s de Haiku + núcleo; medido desde Colombia). Medir desde la EC2 en us-east-1. Si sigue alta, `CLASSIFIER_STRUCTURED=false` ahorra ~0,45 s, pero entiende peor (10/16 contra 15/16).
 5. Validar los textos de los flujos con el equipo de procesos.
@@ -95,7 +95,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | P2 | ¿Dónde corren el núcleo y el agente de voz? | **Decidido:** una instancia **EC2 en us-east-1** con `docker compose` (web + core + voice-agent), conectada al Supabase existente. Guía: [`app-demo/DEPLOY.md`](../app-demo/DEPLOY.md). | Carlos | ✅ |
 | P3 | ¿Qué LLM chico? | **Decidido:** Claude Haiku 5.5 con el SDK oficial de Anthropic, detrás del puerto `Classifier` (ver sección 6). | Carlos | ✅ |
 | P4 | ¿Qué voz en español? | Deepgram Aura-2 con acento colombiano: Celeste o Gloria (muestras generadas el 2026-11-04). | **Celeste** (`aura-2-celeste-es`), elegida 2026-11-04 | ✅ |
-| P5 | ¿Número de EE. UU. o de Colombia para la demo? | EE. UU. si el colombiano no está el día 1. Respaldo: llamada desde el navegador. | | ⬜ |
+| P5 | ¿Número de EE. UU. o de Colombia para la demo? | Colombiano por Twilio (trámite iniciado el 2026-11-04). **Si el fin de semana del 7–8 de noviembre no hay número, se usa el de EE. UU. de LiveKit** (gratis, minutos). Ojo: desde Colombia el de EE. UU. es larga distancia internacional. | Decidido con fecha límite | ⏳ |
 | P6 | ¿Consola con qué tecnología? | **Decidido: Angular** (el equipo lo conoce y la consola sigue en el piloto). Servida por Caddy en `/`, API en `/api` del mismo origen (sin CORS). | Carlos | ✅ |
 
 ## 4. Prerrequisitos (día 0)
@@ -281,7 +281,7 @@ Formato: **ID** · tarea · criterio de aceptación · depende de.
 - [ ] **D1.4** · *(agente hecho y probado por LiveKit Cloud con un operador simulado el 2026-11-04; falta oírlo desde un celular, depende de D1.3)* `voice_agent` mínimo: atiende y saluda con la voz elegida · se oye el saludo al llamar desde un celular · D1.3
 - [x] **D1.5** · *(en `voice_agent/main.py`: `build_stt()` y `build_tts()` leen `STT`, `STT_MODEL`, `TTS`, `TTS_VOICE`)* `providers.py`: STT y TTS elegidos por variable de entorno · cambiar `TTS_VOICE` cambia la voz sin tocar código · D1.4
 - [x] **D1.6** · *(Celeste, Deepgram Aura-2, acento colombiano)* Probar 2–3 voces y cerrar P4 · voz elegida anotada en `.env.example` · D1.4
-- [ ] **D1.7** · Confirmar que el trámite del número colombiano está iniciado · número de solicitud anotado · —
+- [ ] **D1.7** · *(trámite en Twilio iniciado el 2026-11-04; falta anotar el número de solicitud)* Confirmar que el trámite del número colombiano está iniciado · número de solicitud anotado · —
 
 **Plan B del día:** si el número no queda activo, se avanza con llamada desde el navegador y el número se resuelve el día 2.
 
