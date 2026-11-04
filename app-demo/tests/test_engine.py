@@ -6,7 +6,7 @@ import pytest
 
 from core.engine import Engine, InvalidFlow, InvalidTransition, State, flow_from_dict, label_from_dtmf, load_flows
 
-FLOW_IDS = ["no_internet", "first_login", "tablet_wont_power_on"]
+FLOW_IDS = ["no_internet", "first_login", "tablet_wont_power_on", "other"]
 
 
 @pytest.fixture(scope="module")
@@ -24,7 +24,7 @@ def walk(engine: Engine, flow_id: str, labels: list[str]):
 # --------------------------------------------------------------------------- loading
 
 
-def test_loads_the_three_flows(engine: Engine):
+def test_loads_all_flows(engine: Engine):
     assert set(engine.flows) == set(FLOW_IDS)
 
 
@@ -220,3 +220,12 @@ def test_rejects_duplicate_ids():
     d["steps"].append({"id": "a", "text": "dup", "end": True})
     with pytest.raises(InvalidFlow):
         flow_from_dict(d)
+
+
+# --------------------------------------------------------------------------- other (fallback)
+
+
+def test_other_flow_opens_a_case_right_away(engine: Engine):
+    r = engine.start("other")
+    assert r.end and r.create_case
+    assert r.step.destination == "help_desk"

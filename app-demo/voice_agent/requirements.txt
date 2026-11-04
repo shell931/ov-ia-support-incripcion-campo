@@ -1,0 +1,4 @@
+# Voice agent only (the core has its own requirements.txt). Versions verified on 2026-11-04.
+livekit-agents[deepgram,silero]==1.8.10
+anthropic==2.5.0
+httpx==0.28.1

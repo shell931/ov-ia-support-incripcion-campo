@@ -1,0 +1,15 @@
+# Flow: the operator asked for a person before saying what is wrong, or the agent never understood.
+# One step: open a case for the help desk so a person calls back.
+id: other
+description: Otro problema o pidió hablar con una persona  # shown in the console (content: Spanish)
+start: escalate
+escalate: escalate
+max_unclear_attempts: 2
+
+steps:
+  - id: escalate
+    text: "Listo. Voy a dejar un caso para la mesa de ayuda; una persona lo va a llamar a este número."
+    end: true
+    action: create_case
+    destination: help_desk
+    priority: normal

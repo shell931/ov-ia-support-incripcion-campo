@@ -48,9 +48,23 @@ services:
     ports:
       - "127.0.0.1:5432:5432"   # localhost only; never published
 
-  # voice-agent is added in D1.4 (needs the LiveKit, Deepgram and Anthropic keys).
+  # Answers the calls: LiveKit (STT/TTS/VAD) + classifier + core. Outbound only: no ports published.
+  voice-agent:
+    build:
+      context: .
+      dockerfile: voice_agent/Dockerfile
+    env_file: .env
+    environment:
+      CORE_URL: http://core:8000          # inside the docker network, whatever .env says
+      AUDIO_CACHE_DIR: /cache/audio
+    volumes:
+      - audio_cache:/cache/audio          # synthesized fixed phrases survive restarts (TTS cost)
+    depends_on:
+      - core
+    restart: unless-stopped
 
 volumes:
+  audio_cache:
   pgdata:
   caddy_data:
   caddy_config:
