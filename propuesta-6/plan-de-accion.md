@@ -24,7 +24,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | --- | --- | --- |
 | Canal | Llamada telefónica | El cliente no tiene WhatsApp verificado; la demo es solo por voz. |
 | Agente de voz | LiveKit Agents (Python) | Es el único de los evaluados que también corre en local. |
-| Modo inicial | Nube: LiveKit Cloud + Deepgram + Claude Haiku 5.5 + Cartesia | Velocidad para la demo. |
+| Modo inicial | Nube: LiveKit Cloud + Deepgram (oído y voz) + Claude Haiku 5.5 | Velocidad para la demo. |
 | Código | Carpeta `app-demo/` en este mismo repo | Decisión del 2026-11-03: documentación y demo juntas. |
 | Clasificador | **Claude Haiku 5.5** (`claude-haiku-5-5`) con el SDK oficial de Anthropic, detrás de un puerto propio `Classifier` | El más barato de los evaluados ($0,10 / $0,50 por millón de tokens de entrada / salida). En local se cambia el adaptador por uno compatible con OpenAI (Ollama o vLLM); el núcleo no se entera. |
 | Lógica del flujo | Motor YAML determinista | El LLM solo clasifica; no redacta el procedimiento. |
@@ -39,7 +39,7 @@ La demo se construye **con la misma arquitectura que irá a producción**, así 
 | P1 | ¿Dónde vive el código? | **Decidido:** carpeta `app-demo/` en este repo. | Carlos | ✅ |
 | P2 | ¿Dónde corren el núcleo y el agente de voz? | **Decidido:** una instancia **EC2 en us-east-1** con `docker compose` (web + core + voice-agent), conectada al Supabase existente. Guía: [`app-demo/DEPLOY.md`](../app-demo/DEPLOY.md). | Carlos | ✅ |
 | P3 | ¿Qué LLM chico? | **Decidido:** Claude Haiku 5.5 con el SDK oficial de Anthropic, detrás del puerto `Classifier` (ver sección 6). | Carlos | ✅ |
-| P4 | ¿Qué voz en español? | Probar 2 o 3 voces de Cartesia con acento neutro latinoamericano el día 1 y elegir con el equipo. | | ⬜ |
+| P4 | ¿Qué voz en español? | Deepgram Aura-2 con acento colombiano: Celeste o Gloria (muestras generadas el 2026-11-04). Elegir con el equipo. | | ⬜ |
 | P5 | ¿Número de EE. UU. o de Colombia para la demo? | EE. UU. si el colombiano no está el día 1. Respaldo: llamada desde el navegador. | | ⬜ |
 | P6 | ¿Consola con qué tecnología? | **Decidido: Angular** (el equipo lo conoce y la consola sigue en el piloto). Servida por Caddy en `/`, API en `/api` del mismo origen (sin CORS). | Carlos | ✅ |
 
@@ -53,7 +53,7 @@ Las claves van **solo** en `app-demo/.env` (no se sube al repo): nunca en el cha
 | --- | --- | --- | --- | --- | --- |
 | C1 | **LiveKit Cloud** | cloud.livekit.io | Crear un proyecto. En *Telephony*: comprar un número para la demo y crear la regla de despacho hacia el agente (D1.3). | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | Sí, desde D1.3 |
 | C2 | **Deepgram** | console.deepgram.com | Crear una API key. | `DEEPGRAM_API_KEY` | Sí, desde D2.5 |
-| C3 | **Cartesia** | play.cartesia.ai | Crear una API key y elegir 2–3 voces en español para probar (P4). | `CARTESIA_API_KEY`, `TTS_VOICE` | Sí, desde D1.4 |
+| C3 | ~~Cartesia~~ **descartada** (2026-11-04) | — | La voz la pone Deepgram Aura-2 con la misma key de C2: una cuenta menos. La cuenta creada se puede borrar. | `TTS=deepgram`, `TTS_VOICE` | No |
 | C4 | **Anthropic** | platform.claude.com | Crear una API key y cargar saldo (Claude Haiku 5.5). | `ANTHROPIC_API_KEY` | Sí, desde D2.4 |
 | C5 | **Supabase** | supabase.com/dashboard | Crear un proyecto en **us-east-1** con una contraseña fuerte para la base. En *Connect* copiar la cadena del ***Session pooler***. | `DATABASE_URL` | Sí, desde D1.1 |
 | C6 | **AWS (EC2)** | console.aws.amazon.com | Instancia t3.medium Ubuntu 24.04 en **us-east-1**, Elastic IP y security group mínimo (22 solo tu IP, 80/443). Paso a paso en [`app-demo/DEPLOY.md`](../app-demo/DEPLOY.md). | `SITE_ADDRESS`, `CONSOLE_USER`, `CONSOLE_PASSWORD_HASH` | Sí, para la demo en vivo (antes se puede correr en una notebook) |
@@ -191,10 +191,9 @@ ANTHROPIC_API_KEY=
 LLM_BASE_URL=                                    # onprem only: http://llm:11434/v1
 
 # --- Text to speech
-TTS=cartesia                                     # onprem: piper
+TTS=deepgram                                     # onprem: piper
 TTS_BASE_URL=                                    # onprem: http://piper:5000/v1
-CARTESIA_API_KEY=
-TTS_VOICE=
+TTS_VOICE=aura-2-celeste-es                     # uses DEEPGRAM_API_KEY
 
 # --- Core
 CORE_URL=http://core:8000
@@ -305,6 +304,7 @@ Se detallan cuando se apruebe seguir. El orden y el esfuerzo están en [tiempos.
 | 2026-11-03 | antes de D1 | Base de la demo en **Supabase** (Postgres plano): pool de conexiones, runner de migraciones, RLS en todas las tablas, Postgres propio como perfil `local-db`. 69 tests. | — | Demo 100 % en la nube; Supabase solo como Postgres. |
 | 2026-11-03 | antes de D1 | Supabase conectado (PostgreSQL 17, us-east-1). Migraciones aplicadas, RLS en las 4 tablas. `/next-step` probado de punta a punta contra la base real: la cédula queda `*******678` y no aparece en los eventos. | Latencia por turno desde Colombia ≈ 850 ms (≈ 84 ms por ida y vuelta × ~10 viajes a la base). Desde un host en us-east-1 debería bajar a decenas de ms. | Agrupar las operaciones de cada turno en una sola transacción (pendiente). |
 | 2026-11-03 | antes de D1 | Cada turno pasa a 2 viajes a la base (lectura + escritura con el evento en una sola sentencia). `POST /cases` (D3.6): idempotente con la migración `002`, transcripción enmascarada, destino y prioridad desde el YAML. 81 tests. | — | Latencia por turno desde Colombia: de ≈ 850 ms a ≈ 179 ms. Desde us-east-1 serán pocos ms. |
+| 2026-11-04 | antes de D1 | Cuenta **LiveKit Cloud** (C1) creada y validada: la API de servidor autentica y se generan tokens para entrar a salas. Consola Angular revisada en local con casos de prueba. Cuenta **Deepgram** (C2) validada con un audio en español: `nova-3` transcribe bien ("modo avión"); `nova-2` se equivocó ("bobo avión"). Cuenta **Cartesia** (C3) validada: 82 voces en español; 4 muestras con `sonic-3` (Ximena, Fernanda, Rodrigo, Eduardo), y Deepgram las transcribe sin errores. | Falta Anthropic para el agente de voz. Falta elegir la voz entre Celeste y Gloria (P4). | STT: Deepgram `nova-3`, `language=es`. TTS: **Deepgram Aura-2** con acento colombiano (`aura-2-celeste-es` o `aura-2-gloria-es`); se descarta Cartesia para tener una cuenta menos. El número de teléfono se compra al final (D1.3/D1.5): el agente se prueba primero sin línea telefónica. |
 | | D1 | | | |
 | | D2 | | | |
 | | D3 | | | |

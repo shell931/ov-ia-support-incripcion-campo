@@ -72,7 +72,7 @@ Supuestos: 22 días, 2 incidencias/día, 6 min/llamada. P1/P2/P3: 50 % chat / 50
 | Hosting | AWS + servicios de voz | Local | Nube (VM + Docker) → local |
 | Demo | ~día 28 | Después del hardware | **Día 5** |
 | 15 op. / mes | ≈ 310 | ≈ 240 | ≈ 180 nube · ≈ 240 local |
-| 1.400 op. / mes | ≈ 4.800 (*) | ≈ 2.030 | ≈ 5.400 nube · ≈ 2.030 local |
+| 1.400 op. / mes | ≈ 4.800 (*) | ≈ 2.030 | ≈ 5.600 nube · ≈ 2.030 local |
 
 (*) Las líneas de la tabla de 1.400 de [propuesta-4/costos.md](propuesta-4/costos.md) suman ≈ 6.900. Ver la nota en [propuesta-6/costos.md](propuesta-6/costos.md#nota-sobre-los-costos-de-p4).
 

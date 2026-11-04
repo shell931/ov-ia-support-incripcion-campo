@@ -125,7 +125,7 @@ DEMO_SLOTS = [
     ("SERVIDOR DE VOZ", "LiveKit Cloud", "SIP · salas · ruido"),
     ("VOZ → TEXTO", "Deepgram", "streaming en español"),
     ("CLASIFICA", "Claude Haiku 5.5", "sí · no · persona"),
-    ("TEXTO → VOZ", "Cartesia", "+ pasos pregrabados"),
+    ("TEXTO → VOZ", "Deepgram Aura-2", "voz colombiana"),
 ]
 LOCAL_SLOTS = [
     ("TELEFONÍA", "Troncal SIP", "operador colombiano"),
@@ -322,7 +322,7 @@ def diagram():
         ("LIVEKIT_URL", "*.livekit.cloud", "voz.cliente.local"),
         ("STT", "deepgram", "whisper"),
         ("CLASSIFIER", "anthropic", "openai-compat"),
-        ("TTS", "cartesia", "piper"),
+        ("TTS", "deepgram", "piper"),
     ]
     for k, (var, a, b) in enumerate(envs):
         yy = py + 78 + k * 32
@@ -370,7 +370,7 @@ def cost_band(y0):
     rows = [
         ("Semana de demo", "≈ 20–80 (una vez)", "—", "Cuentas de prueba, una VM y el número. Cédulas ficticias."),
         ("15 operadores", "≈ 180", "≈ 240", "La nube gana: una GPU para ~1 llamada a la vez no se justifica."),
-        ("1.400 operadores", "≈ 5.400", "≈ 2.030", "Local ahorra ≈ 60 %: el minuto de Deepgram + LiveKit Cloud domina."),
+        ("1.400 operadores", "≈ 5.600", "≈ 2.030", "Local ahorra ≈ 64 %: el minuto de Deepgram + LiveKit Cloud domina."),
     ]
     for k, (a, b, c, d) in enumerate(rows):
         ry = ty + 44 + k * 46

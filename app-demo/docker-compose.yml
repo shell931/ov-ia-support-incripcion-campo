@@ -48,7 +48,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"   # localhost only; never published
 
-  # voice-agent is added in D1.4 (needs the LiveKit, Deepgram, Cartesia and Anthropic keys).
+  # voice-agent is added in D1.4 (needs the LiveKit, Deepgram and Anthropic keys).
 
 volumes:
   pgdata:

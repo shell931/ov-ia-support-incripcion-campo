@@ -17,7 +17,7 @@ Internet ──443──► EC2 (us-east-1)
 | --- | --- | --- |
 | Región | **us-east-1** (N. Virginia) | La misma que Supabase y que los proveedores de voz. |
 | AMI | Ubuntu Server 24.04 LTS (x86_64) | Estándar, con Docker oficial. |
-| Tipo | **t3.medium** (2 vCPU, 4 GB) | Alcanza para la demo: la voz se procesa en LiveKit, Deepgram y Cartesia. Subir a t3.large si el agente pide más. |
+| Tipo | **t3.medium** (2 vCPU, 4 GB) | Alcanza para la demo: la voz se procesa en LiveKit y Deepgram. Subir a t3.large si el agente pide más. |
 | Disco | 30 GB gp3 | Imágenes de Docker y logs. |
 | Key pair | Una nueva (`.pem`), guardada fuera del repo | Acceso por SSH. |
 | IP | **Elastic IP** asociada | La dirección no cambia si se reinicia; la necesita el certificado HTTPS. |
@@ -57,7 +57,7 @@ Las claves se escriben **directo en la instancia** (`nano .env`), nunca en el re
 | `SITE_ADDRESS` | Un dominio que apunte a la Elastic IP. Sin dominio, para la demo: `<ip-con-guiones>.sslip.io` (ej. `3-90-12-34.sslip.io`). Caddy saca el certificado HTTPS solo. |
 | `CONSOLE_USER` | Usuario de la mesa, ej. `mesa`. |
 | `CONSOLE_PASSWORD_HASH` | Hash de la contraseña, **entre comillas simples**: `docker run --rm caddy:2.10-alpine caddy hash-password --plaintext '<contraseña>'` |
-| LiveKit, Deepgram, Cartesia, Anthropic | Cuando estén las cuentas (D1.3 en adelante). |
+| LiveKit, Deepgram, Anthropic | Cuando estén las cuentas (D1.3 en adelante). |
 
 ## 4. Levantar
 
