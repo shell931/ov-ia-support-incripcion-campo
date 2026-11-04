@@ -8,7 +8,7 @@ import pytest
 from core.engine import Engine, label_from_dtmf, load_flows
 from core.masking import normalize_id_number
 from voice_agent import dialog as d
-from voice_agent.classifier import ANSWER_LABELS, PROBLEM_LABELS, parse_label
+from voice_agent.classifier import ANSWER_LABELS, PROBLEM_LABELS, label_schema, parse_label, parse_structured
 from voice_agent.core_client import Step
 
 
@@ -216,3 +216,17 @@ def test_parse_answer_label(raw, expected):
 def test_parse_problem_label():
     assert parse_label("first_login", PROBLEM_LABELS) == "first_login"
     assert parse_label("tablet_wont_power_on.", PROBLEM_LABELS) == "tablet_wont_power_on"
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [('{"label":"no"}', "no"), ('{"label": "human"}', "human"), ('{"label":"maybe"}', "unclear"), ("no", "unclear"), ("", "unclear"), ("[]", "unclear")],
+)
+def test_parse_structured_label(raw, expected):
+    assert parse_structured(raw, ANSWER_LABELS) == expected
+
+
+def test_label_schema_only_allows_the_labels():
+    schema = label_schema(PROBLEM_LABELS)
+    assert schema["properties"]["label"]["enum"] == list(PROBLEM_LABELS)
+    assert schema["additionalProperties"] is False
